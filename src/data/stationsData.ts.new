@@ -1,0 +1,150 @@
+// Railway Station Data Integration for Indian Railways
+// Uses the actual Indian Railways station data JSON file
+
+export interface RailwayStation {
+  name: string;
+  code: string;
+  city?: string;
+  state?: string;
+  zone?: string;
+}
+
+// Cache for station data to avoid repeated processing
+const allStationsCache = new Map<string, RailwayStation>(); // Full stations database
+let stationsLoaded = false;
+
+/**
+ * Extracts city name from the station name where possible
+ */
+function extractCityFromName(stationName: string): string | undefined {
+  // Simple extraction - in a real app, would use a more sophisticated algorithm
+  // or reference city data
+  const parts = stationName.split(' ');
+  if (parts.length > 0) {
+    return parts[0];
+  }
+  return undefined;
+}
+
+// Load all stations from the actual JSON file
+async function loadAllStations(): Promise<void> {
+  if (stationsLoaded) {
+    console.log('Stations already loaded, using cache');
+    return;
+  }
+  
+  try {
+    console.log('Loading railway stations from JSON database...');
+    
+    // Import the actual station data from JSON file
+    const stationsModule = await import('../indian-railway-stations-2025-08-16.json');
+    const stationsData = stationsModule.default || stationsModule;
+    
+    if (!Array.isArray(stationsData)) {
+      console.error('Stations data is not an array:', typeof stationsData);
+      throw new Error('Invalid stations data format');
+    }
+    
+    console.log(`Processing ${stationsData.length} stations...`);
+    
+    stationsData.forEach((station: any, index: number) => {
+      if (station && station.label && station.value) {
+        const railwayStation: RailwayStation = {
+          name: station.label,
+          code: station.value,
+          city: extractCityFromName(station.label)
+        };
+        
+        // Add to cache using multiple keys for better searchability
+        const codeKey = railwayStation.code.toLowerCase();
+        const nameKey = railwayStation.name.toLowerCase();
+        
+        allStationsCache.set(codeKey, railwayStation);
+        allStationsCache.set(nameKey, railwayStation);
+        
+        // Add partial matches for better search
+        const words = railwayStation.name.toLowerCase().split(' ');
+        words.forEach(word => {
+          if (word.length > 2) {
+            allStationsCache.set(word, railwayStation);
+          }
+        });
+        
+        // Handle common abbreviations
+        if (railwayStation.name.includes('Junction')) {
+          const shortName = railwayStation.name.replace('Junction', 'Jn').toLowerCase();
+          allStationsCache.set(shortName, railwayStation);
+        }
+        if (railwayStation.name.includes('Central')) {
+          const shortName = railwayStation.name.replace('Central', 'Ctrl').toLowerCase();
+          allStationsCache.set(shortName, railwayStation);
+        }
+      }
+    });
+    
+    console.log(`Loaded ${allStationsCache.size} station entries in searchable database.`);
+    stationsLoaded = true;
+  } catch (error) {
+    console.error('Error loading stations:', error);
+    throw error; // Re-throw to be handled by the caller
+  }
+}
+
+// Search for stations by name, code or partial match
+export function searchStations(query: string, limit: number = 10): RailwayStation[] {
+  if (!query) return [];
+  
+  const normalizedQuery = query.toLowerCase().trim();
+  const results: RailwayStation[] = [];
+  const seenStations = new Set<string>(); // To track duplicates
+  
+  // Direct lookup in cache
+  const directMatch = allStationsCache.get(normalizedQuery);
+  if (directMatch) {
+    results.push(directMatch);
+    seenStations.add(directMatch.code);
+  }
+  
+  // Partial matching
+  allStationsCache.forEach((station, key) => {
+    if (results.length >= limit) return;
+    
+    if (!seenStations.has(station.code) && 
+        (key.includes(normalizedQuery) || 
+         station.name.toLowerCase().includes(normalizedQuery) ||
+         station.code.toLowerCase().includes(normalizedQuery))) {
+      results.push(station);
+      seenStations.add(station.code);
+    }
+  });
+  
+  return results;
+}
+
+// Get station by exact code
+export function getStationByCode(code: string): RailwayStation | null {
+  if (!code) return null;
+  const normalizedCode = code.toLowerCase().trim();
+  return allStationsCache.get(normalizedCode) || null;
+}
+
+// Initialize the station database
+export async function initializeStationsDatabase(): Promise<void> {
+  try {
+    await loadAllStations();
+  } catch (error) {
+    console.error('Failed to initialize stations database:', error);
+    throw error;
+  }
+}
+
+// Get all stations as an array
+export function getAllStations(): RailwayStation[] {
+  const uniqueStations = new Map<string, RailwayStation>();
+  
+  allStationsCache.forEach((station) => {
+    uniqueStations.set(station.code, station);
+  });
+  
+  return Array.from(uniqueStations.values());
+}

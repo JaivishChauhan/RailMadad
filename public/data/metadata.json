@@ -1,0 +1,8 @@
+{
+  "name": "RailMadad",
+  "description": "A modern, AI-enhanced grievance redressal system for railway passengers, allowing them to submit and track issues. Features a passenger portal and an admin dashboard for officials to manage and analyze complaints using AI.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

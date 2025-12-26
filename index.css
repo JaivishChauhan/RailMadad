@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background: #fdfeff (Off-white) */
+    --background: 210 100% 99%;
+    /* Foreground: #000000 (Black) */
+    --foreground: 0 0% 0%;
+    
+    /* Card: #fdfeff */
+    --card: 210 100% 99%;
+    --card-foreground: 0 0% 0%;
+    
+    /* Popover: #fdfeff */
+    --popover: 210 100% 99%;
+    --popover-foreground: 0 0% 0%;
+    
+    /* Primary: #75002b (Deep Red) */
+    --primary: 338 100% 23%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary: #930b3e (Berry) */
+    --secondary: 338 86% 31%;
+    --secondary-foreground: 0 0% 98%;
+    
+    /* Muted: #dcdef9 (Lavender) */
+    --muted: 236 65% 92%;
+    /* Muted Foreground: #808080 (Grey) */
+    --muted-foreground: 0 0% 50%;
+    
+    /* Accent: #ff6420 (Orange) */
+    --accent: 18 100% 56%;
+    --accent-foreground: 0 0% 98%;
+    
+    /* Destructive: Keep default or match primary? Default red is fine for errors */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 338 100% 23%; /* Match primary */
+    
+    --radius: 0.5rem;
+    
+    /* Chart colors - keeping existing just in case, but can align with palette if needed */
+    --chart-1: 338 100% 23%;
+    --chart-2: 338 86% 31%;
+    --chart-3: 18 100% 56%;
+    --chart-4: 236 65% 92%;
+    --chart-5: 0 0% 50%;
+  }
+
+  .dark {
+    /* Background: #000000 (Black) */
+    --background: 0 0% 0%;
+    /* Foreground: #ffffff (White) */
+    --foreground: 0 0% 100%;
+    
+    /* Card: #000000 or #34394d (Dark Gray) for specific cards */
+    --card: 0 0% 0%; /* Default card black to blend, or use dark gray? User listed #34394d. Let's use #34394d for cards to distinguish */
+    --card-foreground: 0 0% 100%;
+    
+    /* Popover: #34394d */
+    --popover: 228 19% 25%;
+    --popover-foreground: 0 0% 100%;
+    
+    /* Primary: #75002b (Deep Red) - Might need to be brighter in dark mode? User specified #75002b. Keeping it. */
+    --primary: 338 100% 23%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary: #930b3e */
+    --secondary: 338 86% 31%;
+    --secondary-foreground: 0 0% 98%;
+    
+    /* Muted: #34394d (Dark Gray/Navy) could work as muted background in dark mode? Or #dcdef9 inverted? 
+       Let's use #34394d as a secondary background/muted */
+    --muted: 228 19% 25%;
+    --muted-foreground: 240 5% 64.9%;
+    
+    /* Accent: #ff6420 */
+    --accent: 18 100% 56%;
+    --accent-foreground: 0 0% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 228 19% 25%;
+    --input: 228 19% 25%;
+    --ring: 338 100% 23%;
+    
+    --chart-1: 338 100% 23%;
+    --chart-2: 338 86% 31%;
+    --chart-3: 18 100% 56%;
+    --chart-4: 236 65% 92%;
+    --chart-5: 0 0% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* AppLoader Animations */
+@keyframes gradient {
+  0% { background-position: 0% 0%; }
+  25% { background-position: 100% 100%; }
+  50% { background-position: 100% 100%; }
+  75% { background-position: 0% 0%; }
+  100% { background-position: 0% 0%; }
+}
+
+@keyframes dashArray {
+  0% { stroke-dasharray: 0 1 359 0; }
+  50% { stroke-dasharray: 0 359 1 0; }
+  100% { stroke-dasharray: 359 1 0 0; }
+}
+
+@keyframes dashOffset {
+  0% { stroke-dashoffset: 365; }
+  100% { stroke-dashoffset: 5; }
+}
+
+.animate-gradient {
+  animation: gradient 4s ease-in-out infinite;
+}
+
+.animate-dash {
+  animation: dashArray 2s ease-in-out infinite, dashOffset 2s linear infinite;
+}
