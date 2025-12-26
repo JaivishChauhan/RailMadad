@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="public/railmadad-logo.svg" alt="RailMadad Logo" width="140" height="140" />
+  <img src="https://raw.githubusercontent.com/JaivishChauhan/RailMadad/refs/heads/main/public/favicon/RMLogo.png" alt="RailMadad Logo" width="140" height="140" />
 
   <h1>🚂 RailMadad AI</h1>
   
@@ -120,6 +120,14 @@
 
 ---
 
+## Redesigned Logo
+  <img src="https://raw.githubusercontent.com/JaivishChauhan/RailMadad/refs/heads/main/public/favicon/RMLogo.png" alt="RailMadad Logo" width="100" height="100" />
+A redesigned logo for RailMadad is available at the following URL:
+
+**[https://raw.githubusercontent.com/JaivishChauhan/RailMadad/refs/heads/main/public/favicon/RMLogo.png](https://raw.githubusercontent.com/JaivishChauhan/RailMadad/refs/heads/main/public/favicon/RMLogo.png)**
+
+---
+
 ## 🧠 AI Capabilities
 
 ### Core AI Features
@@ -211,8 +219,8 @@ submitComplaint(complaintData: ComplaintPayload): SubmissionResult
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/railmadad.git
-cd railmadad
+git clone https://github.com/JaivishChauhan/RailMadad.git
+cd RailMadad
 
 # 2. Install dependencies
 pnpm install
