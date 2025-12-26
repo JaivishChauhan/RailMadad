@@ -1,5 +1,6 @@
 import { UserContext, Role } from "../types";
 import { UserContextService } from "../services/userContextService";
+import { UserAwarenessManager } from "./userAwarenessManager";
 import {
   StationValidationResult,
   smartStationValidation,
@@ -93,7 +94,7 @@ export class FunctionCallService {
   private async initializeServices() {
     try {
       // Dynamically import services to avoid circular dependencies
-      const { UserAwarenessManager } = await import("./userAwarenessManager");
+      // const { UserAwarenessManager } = await import("./userAwarenessManager");
       this.userAwarenessManager = UserAwarenessManager.getInstance();
 
       logger.info("Function Call Service initialized");

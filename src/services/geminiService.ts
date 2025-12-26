@@ -19,6 +19,7 @@ import {
   getOpenRouterApiKey,
   getFallbackTierConfig,
 } from "../config/aiConfig";
+import { UserContextService } from "./userContextService";
 
 // Define the tools for the AI model - ENABLED for emergency handling
 export const railwayValidationTools = [
@@ -1991,7 +1992,7 @@ export const chatWithContext = async (
 
     if (userContext) {
       // Import UserContextService dynamically to avoid circular imports
-      const { UserContextService } = await import("./userContextService");
+      // const { UserContextService } = await import("./userContextService");
 
       // Generate comprehensive user-aware system prompt
       const userAwareBasePrompt = generateUserAwareSystemPrompt(
@@ -2521,7 +2522,7 @@ Provide a professional, concise emergency response. If details are missing, ask 
 
   // Enhanced prompt with user context for emergencies
   if (userContext) {
-    const { UserContextService } = await import("./userContextService");
+    // const { UserContextService } = await import("./userContextService");
     const roleInfo = UserContextService.getRoleSystemPrompt(userContext);
 
     emergencyPrompt += `\n\n${roleInfo}\n\nADDITIONAL EMERGENCY CONTEXT:
