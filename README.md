@@ -2,6 +2,7 @@
 
   <img src="https://raw.githubusercontent.com/JaivishChauhan/RailMadad/refs/heads/main/public/favicon/RMLogo.png" alt="RailMadad Logo" width="140" height="140" />
 
+---
   <h1>🚂 RailMadad AI</h1>
   
   <p>
@@ -31,7 +32,9 @@
     <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=flat-square" alt="PRs Welcome" />
     <img src="https://img.shields.io/badge/Status-Prototype-orange?style=flat-square" alt="Status" />
   </p>
+<h1>Preview Here:</h1> 
 
+**[https://railmadad.chauhanjaivish.workers.dev/](https://railmadad.chauhanjaivish.workers.dev/)**
 </div>
 
 <br />
