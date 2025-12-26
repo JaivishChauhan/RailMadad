@@ -1,24 +1,52 @@
-import React from 'react';
+import React, { useRef, useEffect } from "react";
 
 interface AppLoaderProps {
   message?: string;
   subMessage?: string;
   showLogo?: boolean;
+  /** Playback speed multiplier for the animation (e.g., 1.8 = 80% faster) */
+  speed?: number;
 }
 
+/**
+ * Full-screen app loader that shows the RailMadad animated logo.
+ * Uses a short WebM video for small size and smooth playback, and sets playbackRate for speed.
+ *
+ * @param speed - Playback speed multiplier (default: 1.8)
+ */
 const AppLoader: React.FC<AppLoaderProps> = ({
-  message = 'Loading...',
+  message = "Loading...",
   subMessage,
-  showLogo = true
+  showLogo = true,
+  speed = 1.0,
 }) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      try {
+        videoRef.current.playbackRate = speed;
+      } catch (e) {
+        // Some browsers may disallow setting playbackRate before playback starts
+        // We'll ignore errors silently and rely on default playback if necessary
+      }
+    }
+  }, [speed]);
+
   return (
     <div className="fixed inset-0 flex flex-col justify-center items-center bg-gradient-to-br from-gray-300 via-gray-600 to-gray-300 bg-[length:400%_400%] animate-gradient z-[9999]">
-      {/* Logo */}
+      {/* Animated Logo */}
       {showLogo && (
-        <img
-          src="/favicon/RMLogo.png"
-          alt="RailMadad Logo"
-          className="h-16 sm:h-20 md:h-24 mb-6 drop-shadow-lg"
+        <video
+          ref={videoRef}
+          src="/favicon/RM.webm"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          poster="/favicon/RM.gif"
+          className="h-16 sm:h-20 md:h-24 mb-6 drop-shadow-lg object-contain"
         />
       )}
 
@@ -27,7 +55,14 @@ const AppLoader: React.FC<AppLoaderProps> = ({
         {/* Gradient Definition */}
         <svg height="0" width="0" viewBox="0 0 64 64" className="absolute">
           <defs>
-            <linearGradient gradientUnits="userSpaceOnUse" y2="2" x2="0" y1="62" x1="0" id="maroon-gradient">
+            <linearGradient
+              gradientUnits="userSpaceOnUse"
+              y2="2"
+              x2="0"
+              y1="62"
+              x1="0"
+              id="maroon-gradient"
+            >
               <stop stopColor="#800000" />
               <stop stopColor="#8B0000" offset="1" />
             </linearGradient>
@@ -35,7 +70,13 @@ const AppLoader: React.FC<AppLoaderProps> = ({
         </svg>
 
         {/* R */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 64 64" height="64" width="64">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 64 64"
+          height="64"
+          width="64"
+        >
           <path
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -48,7 +89,13 @@ const AppLoader: React.FC<AppLoaderProps> = ({
         </svg>
 
         {/* A */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 64 64" height="64" width="64">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 64 64"
+          height="64"
+          width="64"
+        >
           <path
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -61,7 +108,13 @@ const AppLoader: React.FC<AppLoaderProps> = ({
         </svg>
 
         {/* I */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 64 64" height="64" width="64">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 64 64"
+          height="64"
+          width="64"
+        >
           <path
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -74,7 +127,13 @@ const AppLoader: React.FC<AppLoaderProps> = ({
         </svg>
 
         {/* L */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 64 64" height="64" width="64">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 64 64"
+          height="64"
+          width="64"
+        >
           <path
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -87,7 +146,13 @@ const AppLoader: React.FC<AppLoaderProps> = ({
         </svg>
 
         {/* M */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 64 64" height="64" width="64">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 64 64"
+          height="64"
+          width="64"
+        >
           <path
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -100,7 +165,13 @@ const AppLoader: React.FC<AppLoaderProps> = ({
         </svg>
 
         {/* A */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 64 64" height="64" width="64">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 64 64"
+          height="64"
+          width="64"
+        >
           <path
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -113,7 +184,13 @@ const AppLoader: React.FC<AppLoaderProps> = ({
         </svg>
 
         {/* D */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 64 64" height="64" width="64">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 64 64"
+          height="64"
+          width="64"
+        >
           <path
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -126,7 +203,13 @@ const AppLoader: React.FC<AppLoaderProps> = ({
         </svg>
 
         {/* A */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 64 64" height="64" width="64">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 64 64"
+          height="64"
+          width="64"
+        >
           <path
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -139,7 +222,13 @@ const AppLoader: React.FC<AppLoaderProps> = ({
         </svg>
 
         {/* D */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 64 64" height="64" width="64">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 64 64"
+          height="64"
+          width="64"
+        >
           <path
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -154,9 +243,13 @@ const AppLoader: React.FC<AppLoaderProps> = ({
 
       {/* Loading Text */}
       <div className="mt-8 text-center">
-        <p className="text-lg sm:text-xl font-semibold text-[#75002b] drop-shadow-sm">{message}</p>
+        <p className="text-lg sm:text-xl font-semibold text-[#75002b] drop-shadow-sm">
+          {message}
+        </p>
         {subMessage && (
-          <p className="text-sm sm:text-base text-[#75002b]/80 mt-1">{subMessage}</p>
+          <p className="text-sm sm:text-base text-[#75002b]/80 mt-1">
+            {subMessage}
+          </p>
         )}
       </div>
     </div>
