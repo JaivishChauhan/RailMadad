@@ -260,13 +260,9 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({
       complaintData: NewComplaintData,
       mediaFiles: File[]
     ): Promise<Complaint | null> => {
-      if (!user) {
-        console.error("User not authenticated");
-        return null;
-      }
-
-      if (!isPassenger) {
-        console.error("Only passengers can submit complaints");
+      // Allow Guest (no user) or Passenger. Block Admin.
+      if (user && !isPassenger) {
+        console.error("Admins cannot submit complaints via this flow");
         return null;
       }
 

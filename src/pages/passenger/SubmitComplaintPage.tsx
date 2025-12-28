@@ -389,8 +389,6 @@ const SubmitComplaintPage: React.FC = () => {
     } else if (!declaration) {
       validationError =
         "You must declare that the information provided is true.";
-    } else if (!user) {
-      validationError = "You must be logged in to submit a complaint.";
     }
 
     if (validationError) {
@@ -404,7 +402,7 @@ const SubmitComplaintPage: React.FC = () => {
     addComplaint(
       {
         description,
-        complainantId: user!.id,
+        complainantId: user?.id || "anonymous",
         pnr: journeyMode === "PNR" ? pnr : undefined,
         utsNumber: journeyMode === "UTS" ? utsNumber : undefined,
         journeyDate: complaintArea === "TRAIN" ? journeyDate : undefined,

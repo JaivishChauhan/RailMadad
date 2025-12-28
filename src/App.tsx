@@ -251,9 +251,7 @@ const App: React.FC = () => {
               path="/submit"
               element={
                 <ComplaintProvider>
-                  <PassengerRoute>
-                    <SubmitComplaintPage />
-                  </PassengerRoute>
+                  <SubmitComplaintPage />
                 </ComplaintProvider>
               }
             />
