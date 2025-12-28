@@ -60,6 +60,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { isAIConfigured } from "../config/aiConfig";
 
 // Helper to convert file to base64 string
 const fileToBase64 = (file: Blob): Promise<string> => {
@@ -652,8 +653,8 @@ const Chatbot: React.FC<ChatbotProps> = ({
             context.role === Role.PASSENGER
               ? "Passenger"
               : context.role === Role.OFFICIAL
-              ? "Official"
-              : "Admin";
+                ? "Official"
+                : "Admin";
 
           const isDashboard =
             window.location.pathname.startsWith("/dashboard") ||
@@ -688,17 +689,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
       currentUserContext &&
       !contextLoading
     ) {
-      const apiKey =
-        (typeof import.meta !== "undefined" &&
-          (import.meta as any)?.env?.VITE_GEMINI_API_KEY) ||
-        (typeof process !== "undefined" &&
-          (process.env?.VITE_GEMINI_API_KEY ||
-            process.env?.GEMINI_API_KEY ||
-            process.env?.API_KEY));
+      // Use centralized AI config which checks localStorage first (for Super Admin configured keys)
+      const hasAIConfigured = isAIConfigured();
 
       let greetingMessage: string;
 
-      if (!apiKey || apiKey === "your_api_key_here") {
+      if (!hasAIConfigured) {
         // Offline fallback logic
         greetingMessage = currentUserContext.isAuthenticated
           ? `Welcome back! (Offline Mode) 🚆`
@@ -955,14 +951,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
       const placeholderId = addTypingIndicator();
 
       try {
-        const apiKey =
-          (typeof import.meta !== "undefined" &&
-            (import.meta as any)?.env?.VITE_GEMINI_API_KEY) ||
-          (typeof process !== "undefined" &&
-            (process.env?.VITE_GEMINI_API_KEY ||
-              process.env?.GEMINI_API_KEY ||
-              process.env?.API_KEY));
-        if (!apiKey || apiKey === "your_api_key_here") {
+        // Use centralized AI config which checks localStorage first (for Super Admin configured keys)
+        const hasAIConfigured = isAIConfigured();
+        if (!hasAIConfigured) {
           // ... (Keep existing rule-based logic logic if apiKey missing - simplifying for brevity but preserving handling)
           // For brevity in rewrite, assuming apiKey is present or using simple fallback.
           // Actually, I should preserve the logic.
@@ -1006,9 +997,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
         const history =
           firstUserIndex >= 0
             ? allMessages.slice(firstUserIndex).map((m) => ({
-                role: m.isUser ? ("user" as const) : ("model" as const),
-                parts: [{ text: m.text }],
-              }))
+              role: m.isUser ? ("user" as const) : ("model" as const),
+              parts: [{ text: m.text }],
+            }))
             : [];
 
         const timeContext = addRealTimeContext();
@@ -1277,7 +1268,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
         updateMessageText(placeholderId, "", { isTypingIndicator: false });
         await typeMessage(
           sanitizedResponse ||
-            "I understand. Is there anything else I can help with?",
+          "I understand. Is there anything else I can help with?",
           placeholderId
         );
       } catch (error) {
@@ -1461,8 +1452,8 @@ const Chatbot: React.FC<ChatbotProps> = ({
     ? currentUserContext.role === Role.SUPER_ADMIN
       ? "bg-gradient-to-r from-purple-600 to-purple-800"
       : currentUserContext.role === Role.OFFICIAL
-      ? "bg-gradient-to-r from-blue-600 to-blue-800"
-      : "bg-gradient-to-r from-primary to-primary/80" // Passenger / Default
+        ? "bg-gradient-to-r from-blue-600 to-blue-800"
+        : "bg-gradient-to-r from-primary to-primary/80" // Passenger / Default
     : "bg-gradient-to-r from-primary to-primary/80";
 
   return (
@@ -1496,7 +1487,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
                   )}
                 >
                   {currentUserContext?.isAuthenticated &&
-                  currentUserContext.user?.profilePicture ? (
+                    currentUserContext.user?.profilePicture ? (
                     <Avatar className="h-10 w-10 border-2 border-background">
                       <AvatarImage
                         src={currentUserContext.user.profilePicture}
@@ -1532,8 +1523,8 @@ const Chatbot: React.FC<ChatbotProps> = ({
                       ? currentUserContext.role === Role.PASSENGER
                         ? "Passenger"
                         : currentUserContext.role === Role.OFFICIAL
-                        ? "Official"
-                        : "Admin"
+                          ? "Official"
+                          : "Admin"
                       : "AI Assistant"}
                   </Badge>
                   {currentUserContext?.isAuthenticated && (

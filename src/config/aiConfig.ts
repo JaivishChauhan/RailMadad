@@ -365,26 +365,32 @@ export type FallbackTier = keyof typeof FALLBACK_TIERS;
  * @returns {string | undefined} The resolved API key or undefined if not found.
  */
 export const getGeminiApiKey = (): string | undefined => {
-  // 1. Check LocalStorage (Dynamic Override)
+  // 1. Check LocalStorage (Dynamic Override - highest priority for runtime config)
   if (typeof window !== "undefined") {
     const storedKey = localStorage.getItem(GEMINI_STORAGE_KEY);
     if (storedKey) return storedKey;
   }
 
-  // 2. Vite client-side env (preferred)
-  if (
-    typeof window !== "undefined" &&
-    (window as any)?.importMeta?.env?.VITE_GEMINI_API_KEY
-  ) {
-    return (window as any).importMeta.env.VITE_GEMINI_API_KEY;
+  // 2. Vite client-side env (statically replaced at build time)
+  // Note: import.meta.env.VITE_* is replaced by Vite at build time
+  // For Cloudflare Pages, env vars must be set during the build, not at runtime
+  try {
+    // @ts-expect-error - import.meta.env is injected by Vite at build time
+    const viteKey = import.meta?.env?.VITE_GEMINI_API_KEY;
+    if (viteKey && viteKey !== "undefined" && viteKey !== "") {
+      return viteKey;
+    }
+  } catch {
+    // Fallback if import.meta is not available
   }
 
-  // 3. Node/Vite SSR fallbacks
-  if (typeof process !== "undefined") {
+  // 3. Node/Vite SSR fallbacks (for server-side rendering)
+  if (typeof process !== "undefined" && process.env) {
     return (
-      process.env?.VITE_GEMINI_API_KEY ||
-      process.env?.GEMINI_API_KEY ||
-      process.env?.API_KEY
+      process.env.VITE_GEMINI_API_KEY ||
+      process.env.GEMINI_API_KEY ||
+      process.env.API_KEY ||
+      undefined
     );
   }
 
@@ -400,24 +406,31 @@ export const getGeminiApiKey = (): string | undefined => {
  * @returns {string | undefined} The resolved API key or undefined if not found.
  */
 export const getOpenRouterApiKey = (): string | undefined => {
-  // 1. Check LocalStorage (Dynamic Override)
+  // 1. Check LocalStorage (Dynamic Override - highest priority for runtime config)
   if (typeof window !== "undefined") {
     const storedKey = localStorage.getItem(OPENROUTER_STORAGE_KEY);
     if (storedKey) return storedKey;
   }
 
-  // 2. Vite client-side env (preferred)
-  if (
-    typeof window !== "undefined" &&
-    (window as any)?.importMeta?.env?.VITE_OPENROUTER_API_KEY
-  ) {
-    return (window as any).importMeta.env.VITE_OPENROUTER_API_KEY;
+  // 2. Vite client-side env (statically replaced at build time)
+  // Note: import.meta.env.VITE_* is replaced by Vite at build time
+  // For Cloudflare Pages, env vars must be set during the build, not at runtime
+  try {
+    // @ts-expect-error - import.meta.env is injected by Vite at build time
+    const viteKey = import.meta?.env?.VITE_OPENROUTER_API_KEY;
+    if (viteKey && viteKey !== "undefined" && viteKey !== "") {
+      return viteKey;
+    }
+  } catch {
+    // Fallback if import.meta is not available
   }
 
-  // 3. Node/Vite SSR fallbacks
-  if (typeof process !== "undefined") {
+  // 3. Node/Vite SSR fallbacks (for server-side rendering)
+  if (typeof process !== "undefined" && process.env) {
     return (
-      process.env?.VITE_OPENROUTER_API_KEY || process.env?.OPENROUTER_API_KEY
+      process.env.VITE_OPENROUTER_API_KEY ||
+      process.env.OPENROUTER_API_KEY ||
+      undefined
     );
   }
 
@@ -666,13 +679,11 @@ export const logAIConfigStatus = (): void => {
   const status = getProvidersStatus();
   console.log("🤖 AI Configuration Status:");
   console.log(
-    `   Gemini: ${
-      status.gemini.available ? "✅ Available" : "❌ Not configured"
+    `   Gemini: ${status.gemini.available ? "✅ Available" : "❌ Not configured"
     }${status.gemini.isActive ? " (Active)" : ""}`
   );
   console.log(
-    `   OpenRouter: ${
-      status.openrouter.available ? "✅ Available" : "❌ Not configured"
+    `   OpenRouter: ${status.openrouter.available ? "✅ Available" : "❌ Not configured"
     }${status.openrouter.isActive ? " (Active)" : ""}`
   );
   console.log(`   Active Provider: ${status.activeProvider || "None"}`);
