@@ -415,11 +415,104 @@ const Chatbot: React.FC<ChatbotProps> = ({
     previewUrl: string;
   } | null>(null);
 
-  // State for drag-and-drop visual feedback
+  // State for drag-and-drop visual feedback (for file attachments)
   const [isDragging, setIsDragging] = useState(false);
 
   // Counter to handle nested drag events properly
   const dragCounterRef = useRef(0);
+
+  // ===== DRAGGABLE WINDOW STATE (Desktop Only) =====
+  /**
+   * Position state for the draggable chat window.
+   * Initialized to bottom-right corner (will be adjusted on mount).
+   */
+  const [windowPosition, setWindowPosition] = useState({ x: 0, y: 0 });
+  const [isWindowDragging, setIsWindowDragging] = useState(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const chatWindowRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Checks if the current viewport is desktop-sized (640px+ width).
+   * Used to determine whether to show the draggable window or mobile sheet.
+   */
+  const useMediaQuery = (query: string) => {
+    const [matches, setMatches] = useState(() =>
+      typeof window !== 'undefined' ? window.matchMedia(query).matches : false
+    );
+    useEffect(() => {
+      const mediaQuery = window.matchMedia(query);
+      const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+      mediaQuery.addEventListener('change', handler);
+      return () => mediaQuery.removeEventListener('change', handler);
+    }, [query]);
+    return matches;
+  };
+  const isDesktop = useMediaQuery('(min-width: 640px)');
+
+  // Initialize window position when opening on desktop
+  useEffect(() => {
+    if (isOpen && isDesktop && windowPosition.x === 0 && windowPosition.y === 0) {
+      // Position at bottom-right with some margin
+      const initialX = window.innerWidth - 420; // 400px width + 20px margin
+      const initialY = window.innerHeight - 600; // ~580px height + 20px margin
+      setWindowPosition({
+        x: Math.max(20, initialX),
+        y: Math.max(20, initialY)
+      });
+    }
+  }, [isOpen, isDesktop, windowPosition]);
+
+  /**
+   * Handles mouse down on the chat window header to start dragging.
+   */
+  const handleWindowDragStart = useCallback((e: React.MouseEvent) => {
+    if (!chatWindowRef.current) return;
+    e.preventDefault();
+    setIsWindowDragging(true);
+    const rect = chatWindowRef.current.getBoundingClientRect();
+    dragOffsetRef.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+  }, []);
+
+  /**
+   * Handles mouse move during window dragging.
+   */
+  const handleWindowDrag = useCallback((e: MouseEvent) => {
+    if (!isWindowDragging || !chatWindowRef.current) return;
+    const windowWidth = chatWindowRef.current.offsetWidth;
+    const windowHeight = chatWindowRef.current.offsetHeight;
+
+    // Calculate new position
+    let newX = e.clientX - dragOffsetRef.current.x;
+    let newY = e.clientY - dragOffsetRef.current.y;
+
+    // Constrain within viewport
+    newX = Math.max(0, Math.min(newX, window.innerWidth - windowWidth));
+    newY = Math.max(0, Math.min(newY, window.innerHeight - windowHeight));
+
+    setWindowPosition({ x: newX, y: newY });
+  }, [isWindowDragging]);
+
+  /**
+   * Handles mouse up to stop window dragging.
+   */
+  const handleWindowDragEnd = useCallback(() => {
+    setIsWindowDragging(false);
+  }, []);
+
+  // Attach global mouse event listeners for dragging
+  useEffect(() => {
+    if (isWindowDragging) {
+      document.addEventListener('mousemove', handleWindowDrag);
+      document.addEventListener('mouseup', handleWindowDragEnd);
+      return () => {
+        document.removeEventListener('mousemove', handleWindowDrag);
+        document.removeEventListener('mouseup', handleWindowDragEnd);
+      };
+    }
+  }, [isWindowDragging, handleWindowDrag, handleWindowDragEnd]);
 
   // Update isFullScreen when initialFullScreen prop changes (useful if re-opening)
   useEffect(() => {
@@ -1636,444 +1729,481 @@ const Chatbot: React.FC<ChatbotProps> = ({
         : "bg-gradient-to-r from-primary to-primary/80" // Passenger / Default
     : "bg-gradient-to-r from-primary to-primary/80";
 
-  return (
+  // Common chat content rendered inside either Sheet (mobile) or floating div (desktop)
+  const chatContent = (
     <>
-      <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <SheetContent
-          side="right"
-          className={cn(
-            "p-0 gap-0 flex flex-col h-full transition-all duration-300",
-            isFullScreen
-              ? "inset-x-0 w-full max-w-none sm:max-w-none border-none"
-              : "w-full border-l border-border sm:max-w-md"
-          )}
-          hideCloseButton
-        >
-          {/* Header */}
-          <div
-            className={cn(
-              "flex justify-between items-center p-4 shadow-sm shrink-0 bg-background/80 backdrop-blur-md border-b sticky top-0 z-10"
-            )}
-            dir={isRTL ? "rtl" : "ltr"}
-          >
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div
-                  className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center shadow-sm",
-                    currentUserContext?.isAuthenticated
-                      ? "bg-primary/10"
-                      : "bg-muted"
-                  )}
-                >
-                  {currentUserContext?.isAuthenticated &&
-                    currentUserContext.user?.profilePicture ? (
-                    <Avatar className="h-10 w-10 border-2 border-background">
-                      <AvatarImage
-                        src={currentUserContext.user.profilePicture}
-                      />
-                      <AvatarFallback className="bg-primary text-primary-foreground font-bold">
-                        {currentUserContext.user.fullName?.charAt(0) || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                  ) : (
-                    <Bot className="h-6 w-6 text-primary" />
-                  )}
-                </div>
-                {currentUserContext?.isAuthenticated && (
-                  <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500 border-2 border-white"></span>
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-col">
-                <h2 className="text-base font-semibold text-foreground leading-tight">
-                  {currentUserContext?.isAuthenticated
-                    ? currentUserContext.user?.fullName?.split(" ")[0] || "User"
-                    : "Rail Madad"}
-                </h2>
-                <div className="flex items-center gap-1.5">
-                  <Badge
-                    variant="secondary"
-                    className="text-[10px] h-4 px-1.5 font-normal bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                  >
-                    {currentUserContext?.isAuthenticated
-                      ? currentUserContext.role === Role.PASSENGER
-                        ? "Passenger"
-                        : currentUserContext.role === Role.OFFICIAL
-                          ? "Official"
-                          : "Admin"
-                      : "AI Assistant"}
-                  </Badge>
-                  {currentUserContext?.isAuthenticated && (
-                    <span className="text-[10px] text-muted-foreground">
-                      • Online
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleNewChat}
-                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
-                title="New Chat"
-              >
-                <MessageSquarePlus className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsFullScreen(!isFullScreen)}
-                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors hidden sm:flex"
-                title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
-              >
-                {isFullScreen ? (
-                  <Minimize2 className="h-4 w-4" />
-                ) : (
-                  <Maximize2 className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Messages Area */}
-          {shouldShowAuthPrompt ? (
-            <div className="flex-grow flex flex-col items-center justify-center p-6 bg-muted/30">
-              <div className="text-center space-y-6 max-w-sm">
-                <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
-                  <User className="h-10 w-10 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold">Authentication Required</h3>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {UserContextService.getAuthenticationPrompt()}
-                  </p>
-                </div>
-                <div className="space-y-3 w-full">
-                  <Button
-                    className="w-full"
-                    onClick={() => (window.location.href = "/passenger-login")}
-                  >
-                    Login as Passenger
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => (window.location.href = "/admin-login")}
-                  >
-                    Login as Official
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div
-              ref={chatMessagesRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/10"
-            >
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "flex items-start gap-3",
-                    msg.isUser ? "justify-end" : "justify-start"
-                  )}
-                >
-                  {!msg.isUser && (
-                    <Avatar className="h-8 w-8 border shadow-sm">
-                      <AvatarFallback className="bg-slate-200">
-                        <Bot className="h-4 w-4 text-slate-600" />
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <Card
-                    className={cn(
-                      "max-w-[85%] border shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2 duration-300",
-                      msg.isUser
-                        ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
-                        : "bg-card text-card-foreground rounded-2xl rounded-tl-sm border-muted/60"
-                    )}
-                  >
-                    <CardContent className="p-3 text-sm">
-                      {msg.isTypingIndicator ? (
-                        <div className="flex gap-1 h-5 items-center">
-                          <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
-                          <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
-                          <span className="w-2 h-2 bg-current rounded-full animate-bounce" />
-                        </div>
-                      ) : (
-                        <>
-                          {msg.authStateChange && (
-                            <div className="flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wider opacity-80">
-                              {msg.authStateChange.type === "login" && (
-                                <CheckCircle className="h-3 w-3" />
-                              )}
-                              {msg.authStateChange.type === "logout" && (
-                                <XCircle className="h-3 w-3" />
-                              )}
-                              <span>
-                                {msg.authStateChange.type.replace("_", " ")}
-                              </span>
-                            </div>
-                          )}
-                          {/* Image Attachment */}
-                          {msg.attachment &&
-                            msg.attachment.type === "image" && (
-                              <div
-                                className={cn(
-                                  "mb-2 rounded-lg overflow-hidden border shadow-sm max-w-[200px]",
-                                  msg.isUser ? "ml-auto" : ""
-                                )}
-                              >
-                                <img
-                                  src={msg.attachment.url}
-                                  alt="Attachment"
-                                  className="w-full h-auto"
-                                />
-                              </div>
-                            )}
-                          {/* Audio Attachment */}
-                          {msg.attachment &&
-                            msg.attachment.type === "audio" && (
-                              <div
-                                className={cn(
-                                  "mb-2 rounded-xl overflow-hidden border shadow-sm p-2 bg-muted/50",
-                                  msg.isUser ? "ml-auto" : ""
-                                )}
-                              >
-                                <div className="flex items-center gap-2 mb-1.5">
-                                  <div
-                                    className={cn(
-                                      "w-8 h-8 rounded-full flex items-center justify-center",
-                                      msg.isUser
-                                        ? "bg-primary-foreground/20"
-                                        : "bg-primary/10"
-                                    )}
-                                  >
-                                    <Mic
-                                      className={cn(
-                                        "h-4 w-4",
-                                        msg.isUser
-                                          ? "text-primary-foreground"
-                                          : "text-primary"
-                                      )}
-                                    />
-                                  </div>
-                                  <span
-                                    className={cn(
-                                      "text-xs font-medium",
-                                      msg.isUser
-                                        ? "text-primary-foreground/80"
-                                        : "text-muted-foreground"
-                                    )}
-                                  >
-                                    🎤 Voice Message
-                                  </span>
-                                </div>
-                                <audio
-                                  src={msg.attachment.url}
-                                  controls
-                                  className="w-full h-8"
-                                  style={{ minWidth: "180px" }}
-                                />
-                              </div>
-                            )}
-                          <MarkdownRenderer
-                            content={msg.text}
-                            isUser={msg.isUser}
-                          />
-                          {msg.showActionButton && msg.actionButtonUrl && (
-                            <Button
-                              size="sm"
-                              variant={msg.isUser ? "secondary" : "default"}
-                              className="mt-3 w-full"
-                              onClick={() => {
-                                // Close the chatbot before navigating
-                                onClose();
-                                navigate(msg.actionButtonUrl!);
-                              }}
-                            >
-                              {msg.actionButtonText || "Continue"}
-                            </Button>
-                          )}
-                          {msg.isEmergency && msg.emergencyNumbers && (
-                            <div className="mt-3 space-y-2">
-                              {msg.emergencyNumbers.map((num, i) => (
-                                <Button
-                                  key={i}
-                                  variant="destructive"
-                                  size="sm"
-                                  className="w-full justify-start"
-                                  onClick={() =>
-                                    handleEmergencyDial(num.number, num.label)
-                                  }
-                                >
-                                  📞 Call {num.label}: {num.number}
-                                </Button>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                  {msg.isUser && (
-                    <Avatar className="h-8 w-8 border shadow-sm">
-                      <AvatarImage
-                        src={currentUserContext?.user?.profilePicture}
-                      />
-                      <AvatarFallback className="bg-primary/20 text-primary">
-                        <User className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Footer Input */}
-          <div className="p-4 bg-background/50 backdrop-blur-sm border-t">
-            {pendingFile && (
-              <div className="flex items-center gap-2 mb-2 p-2 bg-muted/50 rounded-lg w-fit animate-in fade-in slide-in-from-bottom-2">
-                <div className="relative">
-                  {pendingFile.type === "image" ? (
-                    <img
-                      src={pendingFile.previewUrl}
-                      alt="Preview"
-                      className="h-16 w-16 object-cover rounded-md border"
-                    />
-                  ) : (
-                    <div className="h-16 w-16 bg-primary/10 flex items-center justify-center rounded-md border">
-                      <Mic className="h-8 w-8 text-primary" />
-                    </div>
-                  )}
-                  <Button
-                    size="icon"
-                    variant="destructive"
-                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full shadow-sm"
-                    onClick={() => setPendingFile(null)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-                <div className="text-xs text-muted-foreground px-2">
-                  <p className="font-medium">Attached {pendingFile.type}</p>
-                  <p>Ready to send</p>
-                </div>
-              </div>
-            )}
-            {/* Drop Zone Wrapper */}
+      {/* Header - Draggable on desktop */}
+      <div
+        className={cn(
+          "flex justify-between items-center p-4 shadow-sm shrink-0 bg-background/80 backdrop-blur-md border-b sticky top-0 z-10",
+          isDesktop && !isFullScreen && "cursor-move select-none"
+        )}
+        dir={isRTL ? "rtl" : "ltr"}
+        onMouseDown={isDesktop && !isFullScreen ? handleWindowDragStart : undefined}
+      >
+        <div className="flex items-center gap-3">
+          <div className="relative">
             <div
               className={cn(
-                "relative flex items-end gap-2 bg-muted/30 p-1.5 rounded-3xl border transition-all shadow-sm",
-                isDragging
-                  ? "border-primary border-2 bg-primary/5 ring-4 ring-primary/20"
-                  : "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50"
+                "w-10 h-10 rounded-full flex items-center justify-center shadow-sm",
+                currentUserContext?.isAuthenticated
+                  ? "bg-primary/10"
+                  : "bg-muted"
               )}
-              onDragEnter={handleDragEnter}
-              onDragLeave={handleDragLeave}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
             >
-              {/* Drag Overlay */}
-              {isDragging && (
-                <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-3xl z-10 pointer-events-none">
-                  <div className="flex items-center gap-2 text-primary font-medium text-sm">
-                    <Paperclip className="h-5 w-5 animate-bounce" />
-                    <span>Drop file here</span>
-                  </div>
-                </div>
+              {currentUserContext?.isAuthenticated &&
+                currentUserContext.user?.profilePicture ? (
+                <Avatar className="h-10 w-10 border-2 border-background">
+                  <AvatarImage
+                    src={currentUserContext.user.profilePicture}
+                  />
+                  <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+                    {currentUserContext.user.fullName?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+              ) : (
+                <Bot className="h-6 w-6 text-primary" />
               )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                onChange={handleFileChange}
-                accept="image/*,audio/*,video/*"
-                className="hidden"
-              />
-
-              <div className="flex gap-0.5 pb-0.5 pl-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsVoiceModalOpen(true)}
-                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                >
-                  <Mic className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                >
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <Textarea
-                ref={textareaRef}
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                onPaste={handlePaste}
-                placeholder={getPlaceholderText(mode)}
-                className="min-h-[40px] max-h-32 py-2.5 px-2 resize-none w-full bg-transparent border-none shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/60"
-                rows={1}
-              />
-
-              <Button
-                size="icon"
-                className={cn(
-                  "h-8 w-8 rounded-full mb-1 mr-1 transition-all",
-                  userInput.trim() || pendingFile
-                    ? "bg-primary opacity-100 scale-100"
-                    : "bg-muted text-muted-foreground opacity-50 scale-90"
-                )}
-                disabled={isLoading || (!userInput.trim() && !pendingFile)}
-                onClick={handleFormSubmit}
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
             </div>
-
-            {authErrors.length > 0 && (
-              <div className="mt-2 text-[10px] text-destructive flex items-center justify-between bg-destructive/5 px-3 py-1.5 rounded-full border border-destructive/20 animate-in fade-in slide-in-from-bottom-1">
-                <span className="flex items-center gap-1.5">
-                  <AlertTriangle className="h-3 w-3" /> {authErrors[0]}
-                </span>
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0 text-destructive font-semibold"
-                  onClick={handleAuthRecovery}
-                >
-                  Retry
-                </Button>
-              </div>
+            {currentUserContext?.isAuthenticated && (
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500 border-2 border-white"></span>
+              </span>
             )}
           </div>
-        </SheetContent>
-      </Sheet>
+
+          <div className="flex flex-col">
+            <h2 className="text-base font-semibold text-foreground leading-tight">
+              {currentUserContext?.isAuthenticated
+                ? currentUserContext.user?.fullName?.split(" ")[0] || "User"
+                : "Rail Madad"}
+            </h2>
+            <div className="flex items-center gap-1.5">
+              <Badge
+                variant="secondary"
+                className="text-[10px] h-4 px-1.5 font-normal bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                {currentUserContext?.isAuthenticated
+                  ? currentUserContext.role === Role.PASSENGER
+                    ? "Passenger"
+                    : currentUserContext.role === Role.OFFICIAL
+                      ? "Official"
+                      : "Admin"
+                  : "AI Assistant"}
+              </Badge>
+              {currentUserContext?.isAuthenticated && (
+                <span className="text-[10px] text-muted-foreground">
+                  • Online
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleNewChat}
+            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
+            title="New Chat"
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsFullScreen(!isFullScreen)}
+            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors hidden sm:flex"
+            title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+          >
+            {isFullScreen ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      {shouldShowAuthPrompt ? (
+        <div className="flex-grow flex flex-col items-center justify-center p-6 bg-muted/30">
+          <div className="text-center space-y-6 max-w-sm">
+            <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
+              <User className="h-10 w-10 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">Authentication Required</h3>
+              <p className="text-sm text-muted-foreground mt-2">
+                {UserContextService.getAuthenticationPrompt()}
+              </p>
+            </div>
+            <div className="space-y-3 w-full">
+              <Button
+                className="w-full"
+                onClick={() => (window.location.href = "/passenger-login")}
+              >
+                Login as Passenger
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => (window.location.href = "/admin-login")}
+              >
+                Login as Official
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={chatMessagesRef}
+          className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/10"
+        >
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={cn(
+                "flex items-start gap-3",
+                msg.isUser ? "justify-end" : "justify-start"
+              )}
+            >
+              {!msg.isUser && (
+                <Avatar className="h-8 w-8 border shadow-sm">
+                  <AvatarFallback className="bg-slate-200">
+                    <Bot className="h-4 w-4 text-slate-600" />
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              <Card
+                className={cn(
+                  "max-w-[85%] border shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2 duration-300",
+                  msg.isUser
+                    ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
+                    : "bg-card text-card-foreground rounded-2xl rounded-tl-sm border-muted/60"
+                )}
+              >
+                <CardContent className="p-3 text-sm">
+                  {msg.isTypingIndicator ? (
+                    <div className="flex gap-1 h-5 items-center">
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
+                      <span className="w-2 h-2 bg-current rounded-full animate-bounce" />
+                    </div>
+                  ) : (
+                    <>
+                      {msg.authStateChange && (
+                        <div className="flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wider opacity-80">
+                          {msg.authStateChange.type === "login" && (
+                            <CheckCircle className="h-3 w-3" />
+                          )}
+                          {msg.authStateChange.type === "logout" && (
+                            <XCircle className="h-3 w-3" />
+                          )}
+                          <span>
+                            {msg.authStateChange.type.replace("_", " ")}
+                          </span>
+                        </div>
+                      )}
+                      {/* Image Attachment */}
+                      {msg.attachment &&
+                        msg.attachment.type === "image" && (
+                          <div
+                            className={cn(
+                              "mb-2 rounded-lg overflow-hidden border shadow-sm max-w-[200px]",
+                              msg.isUser ? "ml-auto" : ""
+                            )}
+                          >
+                            <img
+                              src={msg.attachment.url}
+                              alt="Attachment"
+                              className="w-full h-auto"
+                            />
+                          </div>
+                        )}
+                      {/* Audio Attachment */}
+                      {msg.attachment &&
+                        msg.attachment.type === "audio" && (
+                          <div
+                            className={cn(
+                              "mb-2 rounded-xl overflow-hidden border shadow-sm p-2 bg-muted/50",
+                              msg.isUser ? "ml-auto" : ""
+                            )}
+                          >
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <div
+                                className={cn(
+                                  "w-8 h-8 rounded-full flex items-center justify-center",
+                                  msg.isUser
+                                    ? "bg-primary-foreground/20"
+                                    : "bg-primary/10"
+                                )}
+                              >
+                                <Mic
+                                  className={cn(
+                                    "h-4 w-4",
+                                    msg.isUser
+                                      ? "text-primary-foreground"
+                                      : "text-primary"
+                                  )}
+                                />
+                              </div>
+                              <span
+                                className={cn(
+                                  "text-xs font-medium",
+                                  msg.isUser
+                                    ? "text-primary-foreground/80"
+                                    : "text-muted-foreground"
+                                )}
+                              >
+                                🎤 Voice Message
+                              </span>
+                            </div>
+                            <audio
+                              src={msg.attachment.url}
+                              controls
+                              className="w-full h-8"
+                              style={{ minWidth: "180px" }}
+                            />
+                          </div>
+                        )}
+                      <MarkdownRenderer
+                        content={msg.text}
+                        isUser={msg.isUser}
+                      />
+                      {msg.showActionButton && msg.actionButtonUrl && (
+                        <Button
+                          size="sm"
+                          variant={msg.isUser ? "secondary" : "default"}
+                          className="mt-3 w-full"
+                          onClick={() => {
+                            // Close the chatbot before navigating
+                            onClose();
+                            navigate(msg.actionButtonUrl!);
+                          }}
+                        >
+                          {msg.actionButtonText || "Continue"}
+                        </Button>
+                      )}
+                      {msg.isEmergency && msg.emergencyNumbers && (
+                        <div className="mt-3 space-y-2">
+                          {msg.emergencyNumbers.map((num, i) => (
+                            <Button
+                              key={i}
+                              variant="destructive"
+                              size="sm"
+                              className="w-full justify-start"
+                              onClick={() =>
+                                handleEmergencyDial(num.number, num.label)
+                              }
+                            >
+                              📞 Call {num.label}: {num.number}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              {msg.isUser && (
+                <Avatar className="h-8 w-8 border shadow-sm">
+                  <AvatarImage
+                    src={currentUserContext?.user?.profilePicture}
+                  />
+                  <AvatarFallback className="bg-primary/20 text-primary">
+                    <User className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Footer Input */}
+      <div className="p-4 bg-background/50 backdrop-blur-sm border-t">
+        {pendingFile && (
+          <div className="flex items-center gap-2 mb-2 p-2 bg-muted/50 rounded-lg w-fit animate-in fade-in slide-in-from-bottom-2">
+            <div className="relative">
+              {pendingFile.type === "image" ? (
+                <img
+                  src={pendingFile.previewUrl}
+                  alt="Preview"
+                  className="h-16 w-16 object-cover rounded-md border"
+                />
+              ) : (
+                <div className="h-16 w-16 bg-primary/10 flex items-center justify-center rounded-md border">
+                  <Mic className="h-8 w-8 text-primary" />
+                </div>
+              )}
+              <Button
+                size="icon"
+                variant="destructive"
+                className="absolute -top-2 -right-2 h-5 w-5 rounded-full shadow-sm"
+                onClick={() => setPendingFile(null)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground px-2">
+              <p className="font-medium">Attached {pendingFile.type}</p>
+              <p>Ready to send</p>
+            </div>
+          </div>
+        )}
+        {/* Drop Zone Wrapper */}
+        <div
+          className={cn(
+            "relative flex items-end gap-2 bg-muted/30 p-1.5 rounded-3xl border transition-all shadow-sm",
+            isDragging
+              ? "border-primary border-2 bg-primary/5 ring-4 ring-primary/20"
+              : "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50"
+          )}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          {/* Drag Overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-3xl z-10 pointer-events-none">
+              <div className="flex items-center gap-2 text-primary font-medium text-sm">
+                <Paperclip className="h-5 w-5 animate-bounce" />
+                <span>Drop file here</span>
+              </div>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileChange}
+            accept="image/*,audio/*,video/*"
+            className="hidden"
+          />
+
+          <div className="flex gap-0.5 pb-0.5 pl-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsVoiceModalOpen(true)}
+              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+            >
+              <Mic className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Textarea
+            ref={textareaRef}
+            value={userInput}
+            onChange={(e) => setUserInput(e.target.value)}
+            onKeyDown={handleKeyPress}
+            onPaste={handlePaste}
+            placeholder={getPlaceholderText(mode)}
+            className="min-h-[40px] max-h-32 py-2.5 px-2 resize-none w-full bg-transparent border-none shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/60"
+            rows={1}
+          />
+
+          <Button
+            size="icon"
+            className={cn(
+              "h-8 w-8 rounded-full mb-1 mr-1 transition-all",
+              userInput.trim() || pendingFile
+                ? "bg-primary opacity-100 scale-100"
+                : "bg-muted text-muted-foreground opacity-50 scale-90"
+            )}
+            disabled={isLoading || (!userInput.trim() && !pendingFile)}
+            onClick={handleFormSubmit}
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        {authErrors.length > 0 && (
+          <div className="mt-2 text-[10px] text-destructive flex items-center justify-between bg-destructive/5 px-3 py-1.5 rounded-full border border-destructive/20 animate-in fade-in slide-in-from-bottom-1">
+            <span className="flex items-center gap-1.5">
+              <AlertTriangle className="h-3 w-3" /> {authErrors[0]}
+            </span>
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-destructive font-semibold"
+              onClick={handleAuthRecovery}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  // Main return: conditionally render Sheet (mobile) or floating card (desktop)
+  return (
+    <>
+      {/* Mobile: Use Sheet side panel */}
+      {!isDesktop && (
+        <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+          <SheetContent
+            side="right"
+            className={cn(
+              "p-0 gap-0 flex flex-col h-full transition-all duration-300",
+              isFullScreen
+                ? "inset-x-0 w-full max-w-none sm:max-w-none border-none"
+                : "w-full border-l border-border sm:max-w-md"
+            )}
+            hideCloseButton
+          >
+            {chatContent}
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {/* Desktop: Draggable floating window */}
+      {isDesktop && isOpen && (
+        <div
+          ref={chatWindowRef}
+          className={cn(
+            "fixed z-50 flex flex-col bg-background border border-border rounded-xl shadow-2xl overflow-hidden",
+            "animate-in fade-in slide-in-from-bottom-4 duration-300",
+            isFullScreen
+              ? "inset-4"
+              : "w-[400px] h-[580px]"
+          )}
+          style={
+            isFullScreen
+              ? {}
+              : {
+                left: `${windowPosition.x}px`,
+                top: `${windowPosition.y}px`,
+              }
+          }
+        >
+          {chatContent}
+        </div>
+      )}
 
       {/* Voice Recording Dialog */}
       <Dialog
@@ -2221,10 +2351,10 @@ const Chatbot: React.FC<ChatbotProps> = ({
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Video Warning Dialog */}
-      <Dialog open={isVideoWarningOpen} onOpenChange={setIsVideoWarningOpen}>
+      < Dialog open={isVideoWarningOpen} onOpenChange={setIsVideoWarningOpen} >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
@@ -2239,7 +2369,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
             <Button onClick={() => setIsVideoWarningOpen(false)}>Got it</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog >
     </>
   );
 };

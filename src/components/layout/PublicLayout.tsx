@@ -76,13 +76,13 @@ const PublicLayout: React.FC = () => {
             {!isChatOpen && (
                 <button
                     onClick={() => setIsChatOpen(true)}
-                    className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-primary to-red-700 text-white px-6 py-4 rounded-2xl flex items-center shadow-2xl hover:shadow-3xl hover:scale-105 transition-all duration-300 group animate-bounce"
+                    className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-primary to-red-700 text-white p-3 sm:px-5 sm:py-3 rounded-full sm:rounded-2xl flex items-center shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 group"
                     aria-label="Open Chat"
                 >
-                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center mr-3 group-hover:bg-white/30 transition-colors">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center sm:mr-3 group-hover:bg-white/30 transition-colors">
                         <MessageCircle className="h-5 w-5" />
                     </div>
-                    <div className="text-left">
+                    <div className="text-left hidden sm:block">
                         <div className="font-semibold text-sm">Chat with AI</div>
                         <div className="text-xs text-white/80">Get help instantly</div>
                     </div>
