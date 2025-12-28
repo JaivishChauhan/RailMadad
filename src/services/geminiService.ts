@@ -23,44 +23,7 @@ import { UserContextService } from "./userContextService";
 
 // Define the tools for the AI model - ENABLED for emergency handling
 export const railwayValidationTools = [
-  {
-    functionDeclarations: [
-      {
-        name: "geminiValidateStation",
-        description:
-          "Validate a station name or code against Indian Railway database",
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            stationInput: {
-              type: SchemaType.STRING,
-              description: "Station name or code to validate",
-            },
-          },
-          required: ["stationInput"],
-        },
-      },
-    ],
-  },
-  {
-    functionDeclarations: [
-      {
-        name: "geminiValidateTrain",
-        description:
-          "Validate a train number or name against Indian Railway database",
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            trainInput: {
-              type: SchemaType.STRING,
-              description: "Train number or name to validate",
-            },
-          },
-          required: ["trainInput"],
-        },
-      },
-    ],
-  },
+  // Station and Train validation tools removed to allow AI to use internal knowledge
   {
     functionDeclarations: [
       {
@@ -69,12 +32,12 @@ export const railwayValidationTools = [
         parameters: {
           type: SchemaType.OBJECT,
           properties: {
-            pnrInput: {
+            pnr: {
               type: SchemaType.STRING,
               description: "PNR number to validate",
             },
           },
-          required: ["pnrInput"],
+          required: ["pnr"],
         },
       },
     ],
@@ -344,8 +307,7 @@ const getTierConfig = (
   const config = getFallbackTierConfig(tier as 0 | 1 | 2);
   if (tier > 0) {
     console.log(
-      `${tier === 1 ? "⚠️" : "🆘"} Fallback triggered - switching to ${
-        config.provider
+      `${tier === 1 ? "⚠️" : "🆘"} Fallback triggered - switching to ${config.provider
       } (${config.model})`
     );
   }
@@ -362,9 +324,9 @@ const getTierConfig = (
 type OpenRouterContentPart =
   | { type: "text"; text: string }
   | {
-      type: "image_url";
-      image_url: { url: string; detail?: "auto" | "low" | "high" };
-    };
+    type: "image_url";
+    image_url: { url: string; detail?: "auto" | "low" | "high" };
+  };
 
 /**
  * OpenRouter message format supporting both simple and multimodal content.
@@ -990,14 +952,10 @@ When you need to perform actions like validating stations/trains, submitting com
 FUNCTION_CALL: functionName({ "param1": "value1", "param2": "value2" })
 
 Available functions:
-- validateStation: Validate station name/code (use "stationCode" parameter)
-- validateTrain: Validate train number/name (use "trainNumber" parameter)  
 - validatePNR: Validate PNR number (use "pnr" parameter)
-- submitComplaint: Submit a railway complaint (parameters: complaintType, complaintSubType, complaintArea, description, pnr, utsNumber, trainNumber, stationCode, coachNumber, seatNumber, journeyDate, incidentDate, incidentTime, nearestStation, unauthorizedPeopleCount, mobileNumber)
+- submitComplaint: Submit a railway complaint (parameters: complaintType, complaintSubType, complaintArea, description, pnr, utsNumber, trainNumber, stationCode, coachNumber, seatNumber, journeyDate, incidentDate, incidentTime, nearestStation, unauthorizedPeopleCount, mobileNumber, platformNumber)
 
 Examples:
-FUNCTION_CALL: validateStation({ "stationCode": "NDLS" })
-FUNCTION_CALL: validateTrain({ "trainNumber": "12345" })
 FUNCTION_CALL: validatePNR({ "pnr": "1234567890" })
 FUNCTION_CALL: submitComplaint({ "complaintType": "Security", "complaintSubType": "Theft", "complaintArea": "TRAIN", "description": "Theft in coach S5", "pnr": "1234567890", "trainNumber": "12345", "coachNumber": "S5", "incidentTime": "14:30", "nearestStation": "Kanpur", "mobileNumber": "9876543210" })
 FUNCTION_CALL: switchChatMode({ "mode": "tracking" })
@@ -1032,7 +990,7 @@ Your goal is to gather essential information and get to a confirmation summary q
 
 **Example User Input:** "1234567890, train 12345, s5 robbery right now"
 
-**Correct Bot Response:**
+**Correct Bot Response (for TRAIN complaints):**
 "This is a serious security issue, and I will help you report it immediately.
 
 I am preparing your complaint. Here is what I have:
@@ -1041,14 +999,30 @@ I am preparing your complaint. Here is what I have:
 - **Time:** Occurring right now (current time will be logged)
 - **PNR:** 1234567890
 
-Please reply 'CONFIRM' to submit this report to the Railway Protection Force (RPF) immediately. If anything is incorrect, please let me know."
+Please reply 'CONFIRM' to submit this report..."
+
+**Correct Bot Response (for STATION complaints):**
+"I understand the issue at the station.
+
+I am preparing your complaint. Here is what I have:
+- **Issue:** Dirty Platform
+- **Location:** Kanpur (CNB) Station
+- **Platform:** 3
+- **Time:** Just now
+
+Please reply 'CONFIRM' to submit this report..."
+
+**CRITICAL SUMMARY RULES:**
+- **For Station Complaints:** ALWAYS show **Platform Number** if available. DO NOT show PNR, valid Train Number, or Journey Date in the summary lines.
+- **For Train Complaints:** Show Train Number, Coach, and PNR if available.
 
 **VALIDATION BEHAVIOR:**
-- Silently validate PNR numbers (must be exactly 10 digits)
-- Silently validate train numbers (4-5 digits) 
-- Silently validate station names/codes
-- If validation fails, suggest corrections without showing technical detailsUse the provided 'Zone' information from the train validation to assist your reasoning. If the train's zone is completely unrelated to the station's location (e.g., Northern Railway train at a Southern India station), WARN the user: "It appears Train [X] (Zone: [Z])
-- **LOGICAL CHECK:** If a Train and Station are both provided, verify if the train actually stops at that station. If not, WARN the user: "It appears Train [X] does not stop at [Y]. Please confirm details."
+- **Train & Station Data:** USE YOUR INTERNAL KNOWLEDGE to validate and correct train numbers and station names.
+- **Correction:** If a user inputs a wrong train name or station code (e.g., "Dehli" instead of "Delhi", or "Mumbay" instead of "Mumbai"), politely correct them and proceed.
+  - Example: "I assume you mean New Delhi (NDLS). I have noted that."
+- Silently validate PNR numbers (must be exactly 10 digits) using the tool.
+- If you are unsure about a Train/Station, ask the user to confirm, but trust your internal database of Indian Railways first.
+- **LOGICAL CHECK:** If a Train and Station are both provided, verify if the train actually stops at that station based on your knowledge. If not, WARN the user.
 
 **EMERGENCY RESPONSE PROTOCOL (HIGHEST PRIORITY)**
 When users mention emergency keywords ('emergency', 'urgent', 'immediate', 'help', 'danger', 'medical', 'security', 'accident', 'fire', 'attack', 'robbery', 'harassment', 'medical emergency', 'police', 'ambulance'), follow this TWO-STAGE process:
@@ -1062,7 +1036,8 @@ I am preparing your complaint. Here is what I have:
 - **Issue:** [Description of emergency]
 - **Location:** [Train/Station details]
 - **Time:** [When it occurred]
-- **PNR:** [If provided]
+- **PNR:** [If provided AND it is a Train complaint]
+- **Platform:** [If provided AND it is a Station complaint]
 
 Please reply 'CONFIRM' to submit this report to the Railway Protection Force (RPF) immediately. If anything is incorrect, please let me know."
 
@@ -1209,7 +1184,7 @@ const analysisSchema = {
     urgencyScore: {
       type: SchemaType.INTEGER,
       description:
-        "A numerical score from 1 (very low) to 10 (extremely urgent), based on the severity and potential impact.",
+        "A strict numerical score from 1 (very low) to 10 (extremely urgent). Use the full range based on the criteria provided.",
     },
     summary: {
       type: SchemaType.STRING,
@@ -1260,7 +1235,11 @@ export const analyzeComplaintWithAI = async (
 
         Analyze all the information and determine:
         1. The final category
-        2. Urgency score (1-10)
+        2. Urgency score (1-10) - Score roughly based on:
+           1-3: Minor inconveniences (e.g., cleanliness, wifi)
+           4-6: System failures/Service delays (e.g., AC not working, late train)
+           7-8: Health risks or significant distress (e.g., no water, pests)
+           9-10: Critical safety/Emergency (e.g., medical, harassment, accident)
         3. A brief summary
         4. Key keywords
         5. The most appropriate department to handle this complaint
@@ -1321,8 +1300,7 @@ export const analyzeComplaintWithAI = async (
       lastError = error;
       if (shouldFallback(error) && fallbackTier < 2) {
         console.log(
-          `🔄 Error on analyzeComplaintWithAI - escalating to tier ${
-            fallbackTier + 1
+          `🔄 Error on analyzeComplaintWithAI - escalating to tier ${fallbackTier + 1
           }`
         );
         fallbackTier = (fallbackTier + 1) as FallbackTier;
@@ -1358,6 +1336,7 @@ export interface ExtractedComplaintData {
   nearestStation?: string;
   unauthorizedPeopleCount?: number;
   mobileNumber?: string;
+  platformNumber?: string;
 }
 
 const extractionSchema = {
@@ -1407,6 +1386,10 @@ const extractionSchema = {
       type: SchemaType.STRING,
       description:
         "A detailed, factual, and objective report about the specific issue(s) shown in the media. This will be used as evidence.",
+    },
+    platformNumber: {
+      type: SchemaType.STRING,
+      description: "Platform number if mentioned or visible.",
     },
   },
 };
@@ -1506,7 +1489,8 @@ export const extractComplaintDetailsFromFile = async (
           "description": "Enhanced description string",
           "nearestStation": "Station code/name or null",
           "mobileNumber": "10-digit number or null",
-          "unauthorizedPeopleCount": "Number or null"
+          "unauthorizedPeopleCount": "Number or null",
+          "platformNumber": "Platform number or null"
         }
 
         If a piece of information is not available in the media, do not include its key in the JSON response.
@@ -1638,7 +1622,8 @@ export const extractComplaintDetailsFromText = async (
           "description": "Enhanced description string",
           "nearestStation": "Station code/name or null",
           "mobileNumber": "10-digit number or null",
-          "unauthorizedPeopleCount": "Number or null"
+          "unauthorizedPeopleCount": "Number or null",
+          "platformNumber": "Platform number or null"
         }
 
         If a piece of information is not explicitly mentioned or clearly inferred, do not include its key in the JSON response.
@@ -1692,8 +1677,7 @@ export const extractComplaintDetailsFromText = async (
     } catch (error: any) {
       if (shouldFallback(error) && fallbackTier < 2) {
         console.log(
-          `🔄 Error on extractComplaintDetailsFromText - escalating to tier ${
-            fallbackTier + 1
+          `🔄 Error on extractComplaintDetailsFromText - escalating to tier ${fallbackTier + 1
           }`
         );
         fallbackTier = (fallbackTier + 1) as FallbackTier;
@@ -1796,8 +1780,7 @@ export const extractComplaintFromChatbotMessage = async (
     } catch (error: any) {
       if (shouldFallback(error) && fallbackTier < 2) {
         console.log(
-          `🔄 Error on extractComplaintFromChatbotMessage - escalating to tier ${
-            fallbackTier + 1
+          `🔄 Error on extractComplaintFromChatbotMessage - escalating to tier ${fallbackTier + 1
           }`
         );
         fallbackTier = (fallbackTier + 1) as FallbackTier;
@@ -2587,8 +2570,7 @@ Please reply 'CONFIRM' to submit this report to the Railway Protection Force (RP
     } catch (error: any) {
       if (shouldFallback(error) && fallbackTier < 2) {
         console.log(
-          `🔄 Error on handleEmergencyResponse - escalating to tier ${
-            fallbackTier + 1
+          `🔄 Error on handleEmergencyResponse - escalating to tier ${fallbackTier + 1
           }`
         );
         fallbackTier = (fallbackTier + 1) as FallbackTier;
@@ -2631,16 +2613,6 @@ const handleFunctionCalls = async (
           let functionResult;
 
           switch (functionCall.name) {
-            case "geminiValidateStation":
-              functionResult = await geminiValidateStation(
-                (functionCall.args as any).stationInput
-              );
-              break;
-            case "geminiValidateTrain":
-              functionResult = await geminiValidateTrain(
-                (functionCall.args as any).trainInput
-              );
-              break;
             case "getComplaintStatus":
               // This is a client-side function. We return a special string that the frontend
               // recognizes and executes locally.
@@ -2651,7 +2623,7 @@ const handleFunctionCalls = async (
               break;
             case "geminiValidatePNR":
               functionResult = await geminiValidatePNR(
-                (functionCall.args as any).pnrInput
+                (functionCall.args as any).pnr
               );
               break;
             case "geminiValidateUTS":
@@ -2680,8 +2652,8 @@ const handleFunctionCalls = async (
             functionResult == null
               ? {}
               : typeof functionResult === "string"
-              ? { text: functionResult }
-              : functionResult;
+                ? { text: functionResult }
+                : functionResult;
 
           functionResults.push({
             ...normalizedResult,

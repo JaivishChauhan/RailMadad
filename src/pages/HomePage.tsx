@@ -38,7 +38,8 @@ const HomePage: React.FC = () => {
 
   const handleCardClick = (
     actionType: string,
-    requiresAuth?: boolean | Role
+    requiresAuth?: boolean | Role,
+    additionalState?: any
   ) => {
     // Instead of navigating to separate pages, open chatbot for most actions
     switch (actionType) {
@@ -85,14 +86,19 @@ const HomePage: React.FC = () => {
         // For users who specifically want the traditional form
         if (requiresAuth === Role.PASSENGER || requiresAuth === true) {
           navigate("/passenger-login", {
-            state: { from: { pathname: "/submit" } },
+            state: {
+              from: {
+                pathname: "/submit",
+                state: additionalState,
+              },
+            },
           });
         } else if (requiresAuth === Role.OFFICIAL) {
           navigate("/admin-login", {
             state: { from: { pathname: "/dashboard" } },
           });
         } else {
-          navigate("/submit");
+          navigate("/submit", { state: additionalState });
         }
         break;
       default:
@@ -136,7 +142,11 @@ const HomePage: React.FC = () => {
             <Button
               variant="outline"
               className="w-full text-xs"
-              onClick={() => handleCardClick("legacy-form", Role.PASSENGER)}
+              onClick={() =>
+                handleCardClick("legacy-form", Role.PASSENGER, {
+                  complaintArea: "TRAIN",
+                })
+              }
             >
               Use Traditional Form
             </Button>
@@ -177,7 +187,11 @@ const HomePage: React.FC = () => {
             <Button
               variant="outline"
               className="w-full text-xs"
-              onClick={() => handleCardClick("legacy-form", Role.PASSENGER)}
+              onClick={() =>
+                handleCardClick("legacy-form", Role.PASSENGER, {
+                  complaintArea: "STATION",
+                })
+              }
             >
               Use Traditional Form
             </Button>

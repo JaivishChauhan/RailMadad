@@ -413,6 +413,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
     previewUrl: string;
   } | null>(null);
 
+  // State for drag-and-drop visual feedback
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Counter to handle nested drag events properly
+  const dragCounterRef = useRef(0);
+
   // Update isFullScreen when initialFullScreen prop changes (useful if re-opening)
   useEffect(() => {
     setIsFullScreen(initialFullScreen);
@@ -1122,24 +1128,20 @@ const Chatbot: React.FC<ChatbotProps> = ({
           return;
         }
 
-        const functionCallPattern =
-          /FUNCTION_CALL:\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(\s*(\{.*?\})\s*\)/s;
-        const functionMatch = response.match(functionCallPattern);
+        // Use robust function call extractor
+        const functionCallInfo = extractFunctionCallFromText(response);
 
-        if (functionMatch) {
-          const [, functionName, parametersStr] = functionMatch;
+        if (functionCallInfo) {
+          const { functionName, parameters, fullMatch } = functionCallInfo;
+
           try {
-            const parameters = parametersStr ? JSON.parse(parametersStr) : {};
             await handleFunctionCall(functionName, parameters);
 
             // For mode switches, suppress ALL text output - mode switch is seamless
-            // The new mode's service will handle the next user message naturally
             if (functionName === "switchChatMode") {
-              // Remove the typing indicator without showing any message
               setMessages((prev) => prev.filter((m) => m.id !== placeholderId));
               setIsLoading(false);
 
-              // Add a seamless contextual prompt based on the new mode
               const modePrompts: Record<string, string> = {
                 tracking:
                   "Please provide your **Complaint Reference Number** so I can look up the status for you.",
@@ -1154,7 +1156,6 @@ const Chatbot: React.FC<ChatbotProps> = ({
               const contextualPrompt =
                 modePrompts[targetMode] || "How can I assist you?";
 
-              // Add the contextual response after a brief delay for smooth UX
               setTimeout(() => {
                 const contextMessage: Message = {
                   id: getNextId(),
@@ -1167,72 +1168,29 @@ const Chatbot: React.FC<ChatbotProps> = ({
               return;
             }
 
-            const cleanResponse = response
-              .replace(functionCallPattern, "")
-              .trim();
+            // Remove the function call text from the response
+            let cleanResponse = response.replace(fullMatch, "").trim();
+
+            // Safety cleanup for any lingering prefixes like "FUNCTION_CALL:" if not captured
+            if (cleanResponse.includes("FUNCTION_CALL:")) {
+              cleanResponse = cleanResponse.replace(/FUNCTION_CALL:[\s\S]*/, "").trim();
+            }
+
             if (cleanResponse) {
-              updateMessageText(placeholderId, "", {
-                isTypingIndicator: false,
-              });
+              updateMessageText(placeholderId, "", { isTypingIndicator: false });
               await typeMessage(cleanResponse, placeholderId);
             } else {
               setMessages((prev) => prev.filter((m) => m.id !== placeholderId));
             }
             return;
           } catch (e) {
-            console.error(e);
+            console.error("Error handling function call:", e);
+            // Fall through to show error or sanitized message
           }
         }
 
-        const functionCallInfo = extractFunctionCallFromText(response);
-        if (functionCallInfo) {
-          await handleFunctionCall(
-            functionCallInfo.functionName,
-            functionCallInfo.parameters
-          );
+        // Redundant block removed as it is now covered above
 
-          // For mode switches via alternate extraction, also suppress text output
-          if (functionCallInfo.functionName === "switchChatMode") {
-            setMessages((prev) => prev.filter((m) => m.id !== placeholderId));
-            setIsLoading(false);
-
-            const modePrompts: Record<string, string> = {
-              tracking:
-                "Please provide your **Complaint Reference Number** so I can look up the status for you.",
-              enquiry:
-                "What would you like to know about Indian Railways? I can help with train schedules, fare rules, station facilities, and more.",
-              suggestions:
-                "I'd love to hear your suggestion! Please share your idea to help improve Indian Railways.",
-              "rail-anubhav":
-                "Please share your recent travel experience. Mentioning the **Train Number** and **Date of Journey** helps us improve specific services.",
-            };
-            const targetMode = functionCallInfo.parameters.mode;
-            const contextualPrompt =
-              modePrompts[targetMode] || "How can I assist you?";
-
-            setTimeout(() => {
-              const contextMessage: Message = {
-                id: getNextId(),
-                text: contextualPrompt,
-                isUser: false,
-                userContext: currentUserContext || undefined,
-              };
-              setMessages((prev) => [...prev, contextMessage]);
-            }, 100);
-            return;
-          }
-
-          const cleanResponse = response
-            .replace(functionCallPattern, "")
-            .trim();
-          if (cleanResponse) {
-            updateMessageText(placeholderId, "", { isTypingIndicator: false });
-            await typeMessage(cleanResponse, placeholderId);
-          } else {
-            setMessages((prev) => prev.filter((m) => m.id !== placeholderId));
-          }
-          return;
-        }
 
         if (
           response.includes("EMERGENCY_RESPONSE_NEEDED") ||
@@ -1261,8 +1219,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
         // Safety: Always strip any FUNCTION_CALL text that wasn't matched by the regex
         // This prevents raw function call syntax from showing to users
+        // Match and remove any loose FUNCTION_CALL patterns to be safe
         const sanitizedResponse = response
-          .replace(/FUNCTION_CALL:\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)/gs, "")
+          .replace(/FUNCTION_CALL:[\s\S]*/g, "") // Aggressively remove if still present
           .trim();
 
         updateMessageText(placeholderId, "", { isTypingIndicator: false });
@@ -1393,6 +1352,225 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  /**
+   * Processes a file (from file input, paste, or drag-drop) and sets it as pending attachment.
+   * Validates file size (max 7MB) and type, creates preview URL, and updates state.
+   *
+   * @param {File | Blob} file - The file to process
+   * @param {string} [source='unknown'] - Source of the file for logging purposes
+   * @returns {boolean} True if file was processed successfully, false otherwise
+   */
+  const processFile = useCallback((file: File | Blob, source: string = 'unknown'): boolean => {
+    // File size limit: 7MB for all media types
+    if (file.size > 7 * 1024 * 1024) {
+      alert("File size exceeds 7MB limit.");
+      return false;
+    }
+
+    const isImage = file.type.startsWith("image/");
+    const isAudio = file.type.startsWith("audio/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isImage && !isAudio && !isVideo) {
+      alert("Unsupported file type. Supported: Images, Audio, Video.");
+      return false;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (readerEvent) => {
+      const previewUrl = readerEvent.target?.result as string;
+
+      if (isImage || isVideo) {
+        setPendingFile({
+          blob: file,
+          type: "image",
+          previewUrl,
+        });
+        console.log(
+          `📎 ${isVideo ? 'Video' : 'Image'} attached via ${source}: ${(file as File).name || 'clipboard'} (${(
+            file.size / 1024 / 1024
+          ).toFixed(2)}MB)`
+        );
+      } else if (isAudio) {
+        setPendingFile({
+          blob: file,
+          type: "audio",
+          previewUrl,
+        });
+        console.log(
+          `🎵 Audio attached via ${source}: ${(file as File).name || 'clipboard'} (${(
+            file.size / 1024 / 1024
+          ).toFixed(2)}MB)`
+        );
+      }
+    };
+    reader.readAsDataURL(file);
+    return true;
+  }, []);
+
+  /**
+   * Fetches an image from a URL and converts it to a Blob for attachment.
+   * Validates that the URL points to a valid image/media file.
+   *
+   * @param {string} url - The URL to fetch the image from
+   * @returns {Promise<boolean>} True if image was fetched successfully
+   */
+  const fetchImageFromUrl = useCallback(async (url: string): Promise<boolean> => {
+    try {
+      console.log(`🌐 Fetching image from URL: ${url}`);
+      const response = await fetch(url, { mode: 'cors' });
+
+      if (!response.ok) {
+        console.warn(`Failed to fetch image: HTTP ${response.status}`);
+        return false;
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const isImage = contentType.startsWith('image/');
+      const isAudio = contentType.startsWith('audio/');
+      const isVideo = contentType.startsWith('video/');
+
+      if (!isImage && !isAudio && !isVideo) {
+        console.warn(`URL does not point to a media file: ${contentType}`);
+        return false;
+      }
+
+      const blob = await response.blob();
+      return processFile(blob, 'URL');
+    } catch (error) {
+      console.warn(`Failed to fetch image from URL:`, error);
+      return false;
+    }
+  }, [processFile]);
+
+  /**
+   * Checks if a string is a valid URL pointing to a media file.
+   *
+   * @param {string} text - The text to check
+   * @returns {boolean} True if text is a media URL
+   */
+  const isMediaUrl = (text: string): boolean => {
+    try {
+      const url = new URL(text);
+      const pathname = url.pathname.toLowerCase();
+      const mediaExtensions = [
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico',
+        '.mp3', '.wav', '.ogg', '.aac', '.flac',
+        '.mp4', '.webm', '.mov', '.avi', '.mkv'
+      ];
+      return mediaExtensions.some(ext => pathname.endsWith(ext)) ||
+        url.hostname.includes('imgur') ||
+        url.hostname.includes('giphy') ||
+        url.hostname.includes('unsplash') ||
+        url.hostname.includes('pexels');
+    } catch {
+      return false;
+    }
+  };
+
+  /**
+   * Handles paste events from the textarea to support:
+   * 1. Pasting files directly (images, audio, video)
+   * 2. Pasting URLs to media files (will fetch and attach)
+   *
+   * @param {React.ClipboardEvent<HTMLTextAreaElement>} e - The paste event
+   */
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const clipboardData = e.clipboardData;
+
+    // Check for files first (direct file paste)
+    if (clipboardData?.files && clipboardData.files.length > 0) {
+      const file = clipboardData.files[0];
+      const isImage = file.type.startsWith("image/");
+      const isAudio = file.type.startsWith("audio/");
+      const isVideo = file.type.startsWith("video/");
+
+      if (isImage || isAudio || isVideo) {
+        e.preventDefault();
+        processFile(file, 'paste');
+        return;
+      }
+    }
+
+    // Check for URL in text (paste image URL)
+    const pastedText = clipboardData?.getData('text/plain')?.trim();
+    if (pastedText && isMediaUrl(pastedText)) {
+      e.preventDefault();
+      // Show loading state
+      const originalPlaceholder = textareaRef.current?.placeholder;
+      if (textareaRef.current) {
+        textareaRef.current.placeholder = 'Fetching image from URL...';
+      }
+
+      const success = await fetchImageFromUrl(pastedText);
+
+      // Restore placeholder
+      if (textareaRef.current && originalPlaceholder) {
+        textareaRef.current.placeholder = originalPlaceholder;
+      }
+
+      if (!success) {
+        // If fetch failed, allow the URL to be pasted as text
+        setUserInput(prev => prev + pastedText);
+      }
+      return;
+    }
+
+    // Default: allow normal text paste
+  };
+
+  /**
+   * Handles drag enter event for the drop zone.
+   * Uses a counter to properly handle nested elements.
+   */
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+
+    if (e.dataTransfer?.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  /**
+   * Handles drag leave event for the drop zone.
+   * Uses a counter to properly handle nested elements.
+   */
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  /**
+   * Handles drag over event to allow dropping.
+   */
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  /**
+   * Handles file drop event.
+   * Processes the first dropped file and sets it as pending attachment.
+   */
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      processFile(files[0], 'drag-drop');
+    }
+  }, [processFile]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -1795,7 +1973,28 @@ const Chatbot: React.FC<ChatbotProps> = ({
                 </div>
               </div>
             )}
-            <div className="relative flex items-end gap-2 bg-muted/30 p-1.5 rounded-3xl border focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all shadow-sm">
+            {/* Drop Zone Wrapper */}
+            <div
+              className={cn(
+                "relative flex items-end gap-2 bg-muted/30 p-1.5 rounded-3xl border transition-all shadow-sm",
+                isDragging
+                  ? "border-primary border-2 bg-primary/5 ring-4 ring-primary/20"
+                  : "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50"
+              )}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              {/* Drag Overlay */}
+              {isDragging && (
+                <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-3xl z-10 pointer-events-none">
+                  <div className="flex items-center gap-2 text-primary font-medium text-sm">
+                    <Paperclip className="h-5 w-5 animate-bounce" />
+                    <span>Drop file here</span>
+                  </div>
+                </div>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1828,6 +2027,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 onKeyDown={handleKeyPress}
+                onPaste={handlePaste}
                 placeholder={getPlaceholderText(mode)}
                 className="min-h-[40px] max-h-32 py-2.5 px-2 resize-none w-full bg-transparent border-none shadow-none focus-visible:ring-0 text-sm placeholder:text-muted-foreground/60"
                 rows={1}
@@ -1837,11 +2037,11 @@ const Chatbot: React.FC<ChatbotProps> = ({
                 size="icon"
                 className={cn(
                   "h-8 w-8 rounded-full mb-1 mr-1 transition-all",
-                  userInput.trim()
+                  userInput.trim() || pendingFile
                     ? "bg-primary opacity-100 scale-100"
                     : "bg-muted text-muted-foreground opacity-50 scale-90"
                 )}
-                disabled={isLoading || !userInput.trim()}
+                disabled={isLoading || (!userInput.trim() && !pendingFile)}
                 onClick={handleFormSubmit}
               >
                 {isLoading ? (

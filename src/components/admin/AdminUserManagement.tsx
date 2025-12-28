@@ -14,7 +14,7 @@ import {
 import { LoadingScreen } from "../ui/LoadingScreen";
 import { StatusBadge } from "../ui/StatusBadge";
 import { UserFormModal } from "./UserFormModal";
-import { Edit, Trash2, Plus, ShieldAlert, UserCheck } from "lucide-react";
+import { Edit, Trash2, Plus, ShieldAlert, UserCheck, Lock } from "lucide-react";
 
 interface AdminUser {
   id: string;
@@ -39,6 +39,14 @@ const AdminUserManagement: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+
+  // Password Reset State
+  const [passwordReset, setPasswordReset] = useState({
+    isOpen: false,
+    userId: "",
+    userEmail: "",
+    newPassword: "",
+  });
 
   // Only SUPER_ADMIN can access user management
   if (!user || user.role !== Role.SUPER_ADMIN) {
@@ -143,6 +151,25 @@ const AdminUserManagement: React.FC = () => {
       await handleUpdateUser(formData);
     } else {
       await handleCreateUser(formData);
+    }
+  };
+
+  const handlePasswordReset = () => {
+    if (!passwordReset.newPassword || passwordReset.newPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      const success = LocalAuthService.resetPassword(passwordReset.userId, passwordReset.newPassword);
+      if (success) {
+        setSuccess(`Password for ${passwordReset.userEmail} updated successfully`);
+        setPasswordReset({ ...passwordReset, isOpen: false, newPassword: "" });
+      } else {
+        setError("Failed to update password");
+      }
+    } catch (e) {
+      setError("Error updating password");
     }
   };
 
@@ -276,6 +303,19 @@ const AdminUserManagement: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => setPasswordReset({
+                        isOpen: true,
+                        userId: admin.id,
+                        userEmail: admin.email,
+                        newPassword: ""
+                      })}
+                      title="Reset Password"
+                    >
+                      <Lock className="h-4 w-4 mr-1" /> Reset
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => openEditModal(admin)}
                     >
                       <Edit className="h-4 w-4 mr-1" /> Edit
@@ -315,6 +355,34 @@ const AdminUserManagement: React.FC = () => {
         initialData={editingUser}
         isEditing={!!editingUser}
       />
+
+      {/* Password Reset Modal */}
+      {passwordReset.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl border border-slate-200">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-amber-100 rounded-full text-amber-600">
+                <Lock className="h-5 w-5" />
+              </div>
+              <h3 className="text-lg font-bold">Reset Password</h3>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">
+              Enter a new password for <span className="font-semibold">{passwordReset.userEmail}</span>.
+            </p>
+            <input
+              type="text"
+              placeholder="New Password (min 6 chars)"
+              className="w-full p-2 border rounded mb-6 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              value={passwordReset.newPassword}
+              onChange={(e) => setPasswordReset({ ...passwordReset, newPassword: e.target.value })}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setPasswordReset({ ...passwordReset, isOpen: false })}>Cancel</Button>
+              <Button onClick={handlePasswordReset} className="bg-amber-600 hover:bg-amber-700">Update Password</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

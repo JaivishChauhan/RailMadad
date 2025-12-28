@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { usePassengerAuth } from "../../hooks/usePassengerAuth";
 import { useComplaints } from "../../hooks/useComplaints";
@@ -46,6 +46,7 @@ const SubmitComplaintPage: React.FC = () => {
   const [trainNo, setTrainNo] = useState("");
   const [coachNo, setCoachNo] = useState("");
   const [seatNo, setSeatNo] = useState("");
+  const [platformNo, setPlatformNo] = useState("");
   const [nearestStation, setNearestStation] = useState("");
   const [unauthorizedPeopleCount, setUnauthorizedPeopleCount] = useState<
     number | ""
@@ -67,6 +68,7 @@ const SubmitComplaintPage: React.FC = () => {
   const { addComplaint } = useComplaints();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   const complaintTypes = useMemo(() => {
     return Object.keys(complaintData[complaintArea] || {});
@@ -84,10 +86,14 @@ const SubmitComplaintPage: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    // This effect runs when the component mounts or when location.state changes.
-    // It pre-selects the complaint area if it's passed via navigation state.
-    if (location.state?.complaintArea) {
-      const newArea = location.state.complaintArea as ComplaintArea;
+    // Check navigation state first, then query parameters
+    const stateArea = location.state?.complaintArea;
+    const queryArea = searchParams.get("area")?.toUpperCase();
+
+    const targetArea = stateArea || queryArea;
+
+    if (targetArea && ["TRAIN", "STATION"].includes(targetArea)) {
+      const newArea = targetArea as ComplaintArea;
       setComplaintArea(newArea);
 
       // Reset dependent fields to ensure consistency with the new area
@@ -100,7 +106,7 @@ const SubmitComplaintPage: React.FC = () => {
       setComplaintType("");
       setComplaintSubType("");
     }
-  }, [location.state]);
+  }, [location.state, searchParams]);
 
   useEffect(() => {
     // Cleanup object URLs on component unmount
@@ -121,6 +127,7 @@ const SubmitComplaintPage: React.FC = () => {
       setUtsNumber("");
       setJourneyDate(""); // Clear date for station complaints
     } else {
+      setPlatformNo(""); // Clear platform for train complaints
       setJourneyMode("PNR"); // Default to PNR for train
       setJourneyDate(getTodayDateString()); // Reset to default for train complaints
     }
@@ -231,6 +238,8 @@ const SubmitComplaintPage: React.FC = () => {
     if (extractedData.seatNumber) setSeatNo(extractedData.seatNumber);
     if (extractedData.nearestStation)
       setNearestStation(extractedData.nearestStation);
+    if (extractedData.platformNumber)
+      setPlatformNo(extractedData.platformNumber);
     if (extractedData.unauthorizedPeopleCount)
       setUnauthorizedPeopleCount(extractedData.unauthorizedPeopleCount);
 
@@ -334,6 +343,7 @@ const SubmitComplaintPage: React.FC = () => {
     setCoachNo("");
     setSeatNo("");
     setNearestStation("");
+    setPlatformNo("");
     setUnauthorizedPeopleCount("");
     setDeclaration(false);
     setConsentShare(false);
@@ -408,6 +418,7 @@ const SubmitComplaintPage: React.FC = () => {
         coachNumber: coachNo,
         seatNumber: seatNo,
         nearestStation,
+        platformNumber: platformNo,
         unauthorizedPeopleCount:
           unauthorizedPeopleCount === ""
             ? undefined
@@ -602,9 +613,6 @@ const SubmitComplaintPage: React.FC = () => {
               >
                 <option value="TRAIN">Train</option>
                 <option value="STATION">Station</option>
-                <option value="SUGGESTIONS">Suggestions</option>
-                <option value="ENQUIRY">Enquiry</option>
-                <option value="RAIL_ANUBHAV">Rail Anubhav</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -668,8 +676,8 @@ const SubmitComplaintPage: React.FC = () => {
               </div>
             )}
 
-            {complaintArea === "TRAIN" ? (
-              journeyMode === "PNR" ? (
+            {complaintArea === "TRAIN" &&
+              (journeyMode === "PNR" ? (
                 <div className="space-y-2">
                   <Label htmlFor="pnr">PNR No *</Label>
                   <div className="flex gap-2">
@@ -690,8 +698,8 @@ const SubmitComplaintPage: React.FC = () => {
                       {isVerifyingPnr
                         ? "Verifying..."
                         : pnrVerified
-                        ? "Verified"
-                        : "Verify"}
+                          ? "Verified"
+                          : "Verify"}
                     </Button>
                   </div>
                 </div>
@@ -707,32 +715,44 @@ const SubmitComplaintPage: React.FC = () => {
                     maxLength={10}
                   />
                 </div>
-              )
-            ) : (
+              ))}
+            {complaintArea === "TRAIN" && (
               <div className="space-y-2">
-                <Label htmlFor="pnr">PNR No</Label>
+                <Label htmlFor="journeyDate">Journey Date</Label>
                 <Input
-                  id="pnr"
-                  placeholder="Optional for station issues"
-                  value={pnr}
-                  onChange={(e) => setPnr(e.target.value)}
-                  disabled={true}
-                  className="opacity-50 cursor-not-allowed"
+                  id="journeyDate"
+                  type="date"
+                  value={journeyDate}
+                  onChange={(e) => setJourneyDate(e.target.value)}
+                  disabled={loading || isExtracting}
                 />
               </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="journeyDate">Journey Date</Label>
-              <Input
-                id="journeyDate"
-                type="date"
-                value={journeyDate}
-                onChange={(e) => setJourneyDate(e.target.value)}
-                disabled={
-                  loading || isExtracting || complaintArea === "STATION"
-                }
-              />
-            </div>
+
+            {complaintArea === "STATION" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="nearestStation">Station Name / Code *</Label>
+                  <Input
+                    id="nearestStation"
+                    placeholder="Enter station name or code"
+                    value={nearestStation}
+                    onChange={(e) => setNearestStation(e.target.value)}
+                    disabled={loading || isExtracting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="platformNo">Platform No</Label>
+                  <Input
+                    id="platformNo"
+                    placeholder="Platform Number"
+                    value={platformNo}
+                    onChange={(e) => setPlatformNo(e.target.value)}
+                    disabled={loading || isExtracting}
+                  />
+                </div>
+              </>
+            )}
 
             {complaintArea === "TRAIN" && (
               <>
@@ -899,8 +919,8 @@ const SubmitComplaintPage: React.FC = () => {
               {loading
                 ? "Submitting..."
                 : isExtracting
-                ? "Analyzing files..."
-                : "Submit Complaint"}
+                  ? "Analyzing files..."
+                  : "Submit Complaint"}
             </Button>
           </div>
         </form>

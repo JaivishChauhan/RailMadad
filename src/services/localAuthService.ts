@@ -68,8 +68,8 @@ function loadCustomUsers(): User[] {
     // Ensure reasonable defaults; don't trust stored shapes blindly
     return Array.isArray(parsed)
       ? parsed.filter(
-          (u) => u && typeof u.id === "string" && typeof u.email === "string"
-        )
+        (u) => u && typeof u.id === "string" && typeof u.email === "string"
+      )
       : [];
   } catch {
     return [];
@@ -248,6 +248,31 @@ export class LocalAuthService {
     }
 
     return this.getUserById(userId);
+  }
+
+  /**
+   * Reset user password (Super Admin action)
+   */
+  static resetPassword(userId: string, newPassword: string): boolean {
+    // 1. Try updating in custom users
+    const custom = loadCustomUsers();
+    const cIdx = custom.findIndex((u) => u.id === userId);
+
+    if (cIdx !== -1) {
+      // Direct update, no hashing for this simple local auth
+      custom[cIdx] = { ...custom[cIdx], password: newPassword };
+      saveCustomUsers(custom);
+      return true;
+    }
+
+    // 2. Try updating in built-in users
+    const userIndex = LOCAL_USERS.findIndex((u) => u.id === userId);
+    if (userIndex !== -1) {
+      LOCAL_USERS[userIndex] = { ...LOCAL_USERS[userIndex], password: newPassword };
+      return true;
+    }
+
+    return false;
   }
 
   /**

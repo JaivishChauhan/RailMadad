@@ -184,6 +184,7 @@ export interface Complaint {
   stationCode?: string;
   stationName?: string;
   nearestStation?: string;
+  platformNumber?: string;
 
   // Dynamic fields
   unauthorizedPeopleCount?: number;

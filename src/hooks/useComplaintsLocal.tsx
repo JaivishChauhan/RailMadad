@@ -316,6 +316,7 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({
           stationCode: (complaintData as any).stationCode,
           stationName: (complaintData as any).stationName,
           nearestStation: complaintData.nearestStation,
+          platformNumber: (complaintData as any).platformNumber,
           unauthorizedPeopleCount: complaintData.unauthorizedPeopleCount,
           declaration: complaintData.declaration,
           consentShare: complaintData.consentShare,
@@ -346,22 +347,22 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({
               const updated = prev.map((c) =>
                 c.id === id
                   ? {
-                      ...c,
-                      status: Status.IN_PROGRESS,
-                      assignedTo:
-                        analysisData.suggestedDepartment || "Customer Service",
-                      updatedAt: new Date().toISOString(),
-                      analysis: {
-                        id: `analysis-${id}`,
-                        complaintId: id,
-                        category: analysisData.category,
-                        urgencyScore: analysisData.urgencyScore,
-                        summary: analysisData.summary,
-                        keywords: analysisData.keywords,
-                        suggestedDepartment: analysisData.suggestedDepartment,
-                        analysisTimestamp: new Date().toISOString(),
-                      },
-                    }
+                    ...c,
+                    status: Status.IN_PROGRESS,
+                    assignedTo:
+                      analysisData.suggestedDepartment || "Customer Service",
+                    updatedAt: new Date().toISOString(),
+                    analysis: {
+                      id: `analysis-${id}`,
+                      complaintId: id,
+                      category: analysisData.category,
+                      urgencyScore: analysisData.urgencyScore,
+                      summary: analysisData.summary,
+                      keywords: analysisData.keywords,
+                      suggestedDepartment: analysisData.suggestedDepartment,
+                      analysisTimestamp: new Date().toISOString(),
+                    },
+                  }
                   : c
               );
 
@@ -524,6 +525,7 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({
           stationCode: functionCallArgs.stationCode,
           stationName: functionCallArgs.stationName,
           nearestStation: functionCallArgs.nearestStation,
+          platformNumber: functionCallArgs.platformNumber,
           unauthorizedPeopleCount: functionCallArgs.unauthorizedPeopleCount,
           mobileNumber: functionCallArgs.mobileNumber,
           status: Status.REGISTERED,
@@ -552,22 +554,22 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({
               const updated = prev.map((c) =>
                 c.id === id
                   ? {
-                      ...c,
-                      status: Status.IN_PROGRESS,
-                      assignedTo:
-                        analysisData.suggestedDepartment || "Customer Service",
-                      updatedAt: new Date().toISOString(),
-                      analysis: {
-                        id: `analysis-${id}`,
-                        complaintId: id,
-                        category: analysisData.category,
-                        urgencyScore: analysisData.urgencyScore,
-                        summary: analysisData.summary,
-                        keywords: analysisData.keywords,
-                        suggestedDepartment: analysisData.suggestedDepartment,
-                        analysisTimestamp: new Date().toISOString(),
-                      },
-                    }
+                    ...c,
+                    status: Status.IN_PROGRESS,
+                    assignedTo:
+                      analysisData.suggestedDepartment || "Customer Service",
+                    updatedAt: new Date().toISOString(),
+                    analysis: {
+                      id: `analysis-${id}`,
+                      complaintId: id,
+                      category: analysisData.category,
+                      urgencyScore: analysisData.urgencyScore,
+                      summary: analysisData.summary,
+                      keywords: analysisData.keywords,
+                      suggestedDepartment: analysisData.suggestedDepartment,
+                      analysisTimestamp: new Date().toISOString(),
+                    },
+                  }
                   : c
               );
 
@@ -679,10 +681,10 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({
           const updated = prev.map((c) =>
             c.id === id
               ? {
-                  ...c,
-                  status: Status.WITHDRAWN,
-                  updatedAt: new Date().toISOString(),
-                }
+                ...c,
+                status: Status.WITHDRAWN,
+                updatedAt: new Date().toISOString(),
+              }
               : c
           );
 
@@ -779,23 +781,23 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({
                 const updated = prev.map((c) =>
                   c.id === id
                     ? {
-                        ...c,
-                        status: Status.IN_PROGRESS,
-                        assignedTo:
-                          analysisData.suggestedDepartment ||
-                          "Customer Service",
-                        updatedAt: new Date().toISOString(),
-                        analysis: {
-                          id: `analysis-${id}`,
-                          complaintId: id,
-                          category: analysisData.category,
-                          urgencyScore: analysisData.urgencyScore,
-                          summary: analysisData.summary,
-                          keywords: analysisData.keywords,
-                          suggestedDepartment: analysisData.suggestedDepartment,
-                          analysisTimestamp: new Date().toISOString(),
-                        },
-                      }
+                      ...c,
+                      status: Status.IN_PROGRESS,
+                      assignedTo:
+                        analysisData.suggestedDepartment ||
+                        "Customer Service",
+                      updatedAt: new Date().toISOString(),
+                      analysis: {
+                        id: `analysis-${id}`,
+                        complaintId: id,
+                        category: analysisData.category,
+                        urgencyScore: analysisData.urgencyScore,
+                        summary: analysisData.summary,
+                        keywords: analysisData.keywords,
+                        suggestedDepartment: analysisData.suggestedDepartment,
+                        analysisTimestamp: new Date().toISOString(),
+                      },
+                    }
                     : c
                 );
 
