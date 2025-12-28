@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 // Part type is now used inline for multimodal parts
@@ -353,6 +354,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
   initialFullScreen = false,
   mode = "general",
 }) => {
+  const navigate = useNavigate();
   // Initialize messages from session storage if available, preserving chat across page navigations
   const [messages, setMessages] = useState<Message[]>(() => {
     const savedSession = loadChatSession(mode);
@@ -1899,9 +1901,11 @@ const Chatbot: React.FC<ChatbotProps> = ({
                               size="sm"
                               variant={msg.isUser ? "secondary" : "default"}
                               className="mt-3 w-full"
-                              onClick={() =>
-                                (window.location.href = msg.actionButtonUrl!)
-                              }
+                              onClick={() => {
+                                // Close the chatbot before navigating
+                                onClose();
+                                navigate(msg.actionButtonUrl!);
+                              }}
                             >
                               {msg.actionButtonText || "Continue"}
                             </Button>

@@ -16,6 +16,38 @@ export default defineConfig(({ mode }) => {
         env.VITE_OPENROUTER_API_KEY || env.OPENROUTER_API_KEY
       ),
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            "react-vendor": ["react", "react-dom", "react-router-dom"],
+            "ui-vendor": [
+              "@radix-ui/react-avatar",
+              "@radix-ui/react-dialog",
+              "@radix-ui/react-dropdown-menu",
+              "@radix-ui/react-label",
+              "@radix-ui/react-popover",
+              "@radix-ui/react-scroll-area",
+              "@radix-ui/react-select",
+              "@radix-ui/react-separator",
+              "@radix-ui/react-slot",
+              "@radix-ui/react-tabs",
+              "@radix-ui/react-tooltip",
+              "lucide-react",
+              "class-variance-authority",
+              "clsx",
+              "tailwind-merge",
+              "tailwindcss-animate",
+            ],
+            "chart-vendor": ["recharts"],
+            "ai-vendor": ["@google/generative-ai"],
+            "db-vendor": ["@supabase/supabase-js"],
+            "markdown-vendor": ["react-markdown", "remark-gfm"],
+          },
+        },
+      },
+      chunkSizeWarningLimit: 1000,
+    },
     server: {
       // Allow all hosts (useful for Cloudflare Tunnels or custom dev domains)
       // NOTE: Dev-only. Prefer explicit hosts for better security when possible.
@@ -25,10 +57,10 @@ export default defineConfig(({ mode }) => {
       // Help Vite HMR work over Cloudflare Tunnel. Set VITE_TUNNEL_HOST to your tunnel domain (no scheme).
       hmr: tunnelHost
         ? {
-            host: tunnelHost,
-            protocol: "wss",
-            clientPort: 443,
-          }
+          host: tunnelHost,
+          protocol: "wss",
+          clientPort: 443,
+        }
         : undefined,
     },
     resolve: {

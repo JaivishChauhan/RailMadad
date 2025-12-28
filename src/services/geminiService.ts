@@ -960,6 +960,13 @@ FUNCTION_CALL: validatePNR({ "pnr": "1234567890" })
 FUNCTION_CALL: submitComplaint({ "complaintType": "Security", "complaintSubType": "Theft", "complaintArea": "TRAIN", "description": "Theft in coach S5", "pnr": "1234567890", "trainNumber": "12345", "coachNumber": "S5", "incidentTime": "14:30", "nearestStation": "Kanpur", "mobileNumber": "9876543210" })
 FUNCTION_CALL: switchChatMode({ "mode": "tracking" })
 
+**CRITICAL COMPLAINT SUBMISSION RULE:**
+- **NEVER generate a Complaint Reference Number (CRN) or ID yourself.**
+- **NEVER say "Complaint submitted successfully" or "Here is your reference number" in the text response.**
+- **ONLY output the 'FUNCTION_CALL: submitComplaint(...)' command.**
+- You may say "I am submitting your complaint now. Rest assured, we will handle this with priority." and Assure rapid response. 
+- The SYSTEM will generate the ID and show the confirmation. You must NOT do it.
+
 **MODE SWITCHING PROTOCOL - SEAMLESS TRANSITIONS**
 - When switching modes, do NOT announce or mention the switch to the user. Switch silently and respond directly in the context of the new mode.
 - If the user explicitly asks to track a complaint or check PNR status (without filing a new complaint), use switchChatMode({ "mode": "tracking" }) and immediately ask for their Complaint Reference Number.
@@ -1044,7 +1051,7 @@ Please reply 'CONFIRM' to submit this report to the Railway Protection Force (RP
 **STAGE 2: POST-CONFIRMATION (After user confirms)**
 ONLY after user replies 'CONFIRM' or 'YES', then provide emergency response:
 
-"🚨 EMERGENCY_RESPONSE_NEEDED 🚨
+"🚨 EMERGENCY 🚨
 
 Your emergency complaint has been submitted to railway authorities. Please follow these immediate steps:
 
@@ -1054,10 +1061,10 @@ Your emergency complaint has been submitted to railway authorities. Please follo
 • Provide your exact location details when ready
 
 **EMERGENCY CONTACTS:**
-📞 Railway Helpline: 139
-📞 Railway Protection Force: 182
-📞 Medical Emergency: 108
-📞 Police Emergency: 100
+📞 Railway Helpline: 139 \n
+📞 Railway Protection Force: 182 \n
+📞 Medical Emergency: 108 \n
+📞 Police Emergency: 100 \n
 
 Your complaint has been escalated to the appropriate authorities for immediate attention."
 
@@ -2638,6 +2645,11 @@ const handleFunctionCalls = async (
                 (functionCall.args as any).description
               );
               break;
+            case "submitComplaint":
+              // Client-side function for submitting complaints
+              return `FUNCTION_CALL: submitComplaint(${JSON.stringify(
+                functionCall.args
+              )})`;
             case "switchChatMode":
               // Client-side mode switching
               return `FUNCTION_CALL: switchChatMode(${JSON.stringify(

@@ -344,9 +344,18 @@ const ComplaintDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { getComplaintById } = useComplaints();
+  const { getComplaintById, loading, complaints } = useComplaints(); // Destructure loading/complaints for debug
   const complaint = id ? getComplaintById(id) : undefined;
   const fromPublicTrack = location.state?.fromPublicTrack;
+
+  console.log("🔍 ComplaintDetailPage Debug:", {
+    id,
+    complaintFound: !!complaint,
+    loading,
+    totalComplaints: complaints?.length,
+    pathname: location.pathname,
+    hash: location.hash
+  });
 
   if (!complaint) {
     return (
@@ -477,8 +486,8 @@ const ComplaintDetailPage: React.FC = () => {
                         {complaint.analysis.urgencyScore > 7
                           ? "High Priority"
                           : complaint.analysis.urgencyScore > 4
-                          ? "Medium Priority"
-                          : "Standard"}
+                            ? "Medium Priority"
+                            : "Standard"}
                       </p>
                     </div>
                   )}

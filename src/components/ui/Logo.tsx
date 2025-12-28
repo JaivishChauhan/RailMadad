@@ -6,10 +6,10 @@ interface LogoProps {
   alt?: string;
 }
 
-const Logo: React.FC<LogoProps> = ({ 
-  className = '', 
-  size = 'md', 
-  alt = 'RailMadad Logo' 
+const Logo: React.FC<LogoProps> = ({
+  className = '',
+  size = 'md',
+  alt = 'RailMadad Logo'
 }) => {
   const sizeClasses = {
     sm: 'h-8',
@@ -19,9 +19,9 @@ const Logo: React.FC<LogoProps> = ({
   };
 
   return (
-    <img 
-      src="/favicon/RMLogo.png" 
-      alt={alt} 
+    <img
+      src="/favicon/web-app-manifest-192x192.png"
+      alt={alt}
       className={`${sizeClasses[size]} ${className}`}
     />
   );

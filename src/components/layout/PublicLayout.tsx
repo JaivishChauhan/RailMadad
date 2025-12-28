@@ -46,7 +46,7 @@ const PublicLayout: React.FC = () => {
     return (
         <div
             className="min-h-screen flex flex-col bg-white bg-cover bg-center bg-fixed"
-            style={{ backgroundImage: `url('https://i.ibb.co/KsH0yyM/body-bg.jpg')` }}
+            style={{ backgroundImage: `url('/body-bg.jpg')` }}
         >
             <div className="relative z-10 flex flex-col min-h-screen">
                 <Header />

@@ -8,34 +8,51 @@ export interface RailwayTrain {
 let trainsData: RailwayTrain[] = [];
 let trainsLoaded = false;
 
+import DataLoaderWorker from '../workers/dataLoader.worker?worker';
+
 // Simple load function - just get the JSON data
 async function loadTrains(): Promise<void> {
   if (trainsLoaded) return;
 
-  try {
-    // Use fetch for JSON loading to avoid TypeScript import issues
-    const response = await fetch("/data/refined_train_data.json");
-    if (!response.ok) {
-      throw new Error(`Failed to fetch trains data: ${response.status}`);
-    }
-    const rawData = await response.json();
+  // Return a promise that resolves when the worker sends back data
+  return new Promise((resolve, reject) => {
+    try {
+      const worker = new DataLoaderWorker();
 
-    trainsData = rawData
-      .map((train: any) => ({
-        name: train.train_name,
-        number: train.train_number,
-        zone: train.zone,
-      }))
-      .filter((train: RailwayTrain) => train.number && train.number.trim()); // Only keep trains with valid numbers
+      worker.onmessage = (e) => {
+        const { type, data, error } = e.data;
+        if (type === "SUCCESS") {
+          trainsData = data;
+          trainsLoaded = true;
+          if (process.env.NODE_ENV === "development") {
+            console.log(`Loaded ${trainsData.length} railway trains (worker)`);
+          }
+          worker.terminate();
+          resolve();
+        } else if (type === "ERROR") {
+          console.error('Failed to load trains (worker):', error);
+          worker.terminate();
+          reject(new Error(error));
+        }
+      };
 
-    trainsLoaded = true;
-    if (process.env.NODE_ENV === "development") {
-      console.log(`Loaded ${trainsData.length} railway trains`);
+      worker.onerror = (err) => {
+        console.error('Worker error:', err);
+        worker.terminate();
+        reject(err);
+      };
+
+      worker.postMessage({
+        type: "LOAD_DATA",
+        url: "/data/refined_train_data.json",
+        kind: "trains"
+      });
+
+    } catch (error) {
+      console.error('Failed to initialize worker:', error);
+      reject(error);
     }
-  } catch (error) {
-    console.error("Failed to load trains:", error);
-    throw error;
-  }
+  });
 }
 
 // Smart validation - handles numbers, names, and fuzzy matching

@@ -278,7 +278,7 @@ export class FunctionCallService {
 
           return {
             success: true,
-            message: `✅ Complaint submitted successfully! Your complaint ID is ${complaint.id}. You can track its status anytime.`,
+            message: `✅ Complaint submitted successfully! Your complaint ID is ${complaint.id}. Rest assured, our team will look into this immediately. You can track its status anytime.`,
             data: {
               complaintId: complaint.id,
               complaint: complaint,
@@ -363,13 +363,11 @@ export class FunctionCallService {
 
           return {
             success: true,
-            message: `📋 **Complaint Found!**\n\n**Reference:** ${
-              complaint.id
-            }\n**Status:** ${complaint.status}\n**Title:** ${
-              complaint.title
-            }\n**Filed:** ${new Date(
-              complaint.createdAt
-            ).toLocaleDateString()}`,
+            message: `📋 **Complaint Found!**\n\n**Reference:** ${complaint.id
+              }\n**Status:** ${complaint.status}\n**Title:** ${complaint.title
+              }\n**Filed:** ${new Date(
+                complaint.createdAt
+              ).toLocaleDateString()}`,
             data: complaint,
             redirectTo: `/status/${complaint.id}`,
           };
@@ -429,9 +427,8 @@ export class FunctionCallService {
 
           return {
             success: true,
-            message: `📋 Found ${userComplaints.length} complaint(s) for ${
-              userContext.user?.fullName || userContext.user?.email
-            }`,
+            message: `📋 Found ${userComplaints.length} complaint(s) for ${userContext.user?.fullName || userContext.user?.email
+              }`,
             data: userComplaints,
             redirectTo: "/status",
           };
@@ -626,8 +623,8 @@ export class FunctionCallService {
         params.rating === "positive"
           ? "😊"
           : params.rating === "negative"
-          ? "😔"
-          : "🤔";
+            ? "😔"
+            : "🤔";
 
       return {
         success: true,

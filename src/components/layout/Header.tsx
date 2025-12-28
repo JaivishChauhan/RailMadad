@@ -39,7 +39,7 @@ const Header: React.FC = () => {
           {/* Left side logos - hidden on small mobile, shown on larger screens */}
           <div className="hidden sm:flex items-center gap-2 sm:gap-4">
             <img
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Government_of_India_logo.svg/2560px-Government_of_India_logo.svg.png"
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Government_of_India_logo.svg/200px-Government_of_India_logo.svg.png"
               alt="Government of India"
               className="h-8 sm:h-10 md:h-12"
             />
@@ -98,9 +98,9 @@ const Header: React.FC = () => {
                     {greeting}, {currentUser.fullName || currentUser.email}
                   </span>
                   {onAdminRoute ||
-                  currentUser.role === Role.OFFICIAL ||
-                  currentUser.role === Role.SUPER_ADMIN ||
-                  currentUser.role === Role.MODERATOR ? (
+                    currentUser.role === Role.OFFICIAL ||
+                    currentUser.role === Role.SUPER_ADMIN ||
+                    currentUser.role === Role.MODERATOR ? (
                     <Link to="/dashboard" title="Go to Admin Dashboard">
                       <Button
                         variant="outline"

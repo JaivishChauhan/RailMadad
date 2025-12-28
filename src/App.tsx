@@ -13,27 +13,29 @@ import "./utils/silenceConsole";
 import PublicLayout from "./components/layout/PublicLayout";
 import AppLoader from "./components/ui/AppLoader";
 // SessionDebugPanel removed
-import HomePage from "./pages/HomePage";
-import LoginPage from "./pages/LoginPage";
-import AdminLoginPage from "./pages/AdminLoginPage";
-import PassengerLoginPage from "./pages/PassengerLoginPage";
-import PassengerRegisterPage from "./pages/PassengerRegisterPage";
-import AdminRegisterPage from "./pages/AdminRegisterPage";
-import SubmitComplaintPage from "./pages/passenger/SubmitComplaintPage";
-import ComplaintStatusPage from "./pages/passenger/ComplaintStatusPage";
-import ComplaintDetailPage from "./pages/passenger/ComplaintDetailPage";
-import EditComplaintPage from "./pages/passenger/EditComplaintPage";
-import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
-import AdminComplaintDetailPage from "./pages/admin/AdminComplaintDetailPage";
-import RailAnubhavPage from "./pages/RailAnubhavPage";
-import FaqPage from "./pages/FaqPage";
-import TrackComplaintPage from "./pages/passenger/TrackComplaintPage";
-import SuggestionsPage from "./pages/passenger/SuggestionsPage";
-import { Role } from "./types";
-// Duplicate imports removed
 import { MaintenanceScreen } from "./components/ui/MaintenanceScreen";
 import PrototypeDisclaimerPopup from "./components/PrototypeDisclaimerPopup";
 import ApiKeyPopup from "./components/ApiKeyPopup";
+
+// Lazy load pages for 2G optimization
+const HomePage = React.lazy(() => import("./pages/HomePage"));
+const LoginPage = React.lazy(() => import("./pages/LoginPage"));
+const AdminLoginPage = React.lazy(() => import("./pages/AdminLoginPage"));
+const PassengerLoginPage = React.lazy(() => import("./pages/PassengerLoginPage"));
+const PassengerRegisterPage = React.lazy(() => import("./pages/PassengerRegisterPage"));
+const AdminRegisterPage = React.lazy(() => import("./pages/AdminRegisterPage"));
+const SubmitComplaintPage = React.lazy(() => import("./pages/passenger/SubmitComplaintPage"));
+const ComplaintStatusPage = React.lazy(() => import("./pages/passenger/ComplaintStatusPage"));
+const ComplaintDetailPage = React.lazy(() => import("./pages/passenger/ComplaintDetailPage"));
+const EditComplaintPage = React.lazy(() => import("./pages/passenger/EditComplaintPage"));
+const AdminDashboardPage = React.lazy(() => import("./pages/admin/AdminDashboardPage"));
+const AdminComplaintDetailPage = React.lazy(() => import("./pages/admin/AdminComplaintDetailPage"));
+const RailAnubhavPage = React.lazy(() => import("./pages/RailAnubhavPage"));
+const FaqPage = React.lazy(() => import("./pages/FaqPage"));
+const TrackComplaintPage = React.lazy(() => import("./pages/passenger/TrackComplaintPage"));
+const SuggestionsPage = React.lazy(() => import("./pages/passenger/SuggestionsPage"));
+
+import { Role } from "./types";
 
 // Route guards
 const PassengerRoute: React.FC<{ children: React.ReactNode }> = ({
@@ -98,50 +100,37 @@ const App: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Initialize the railway stations and trains databases when app starts
-    const initializeDatabases = async () => {
-      try {
+    // Initialize the railway stations and trains databases in background
+    // Delayed to prioritize LCP and critical assets
+    const initializeDatabases = () => {
+      // 5 second delay to let the main page load (LCP)
+      const DELAY_MS = 5000;
+
+      const timer = setTimeout(() => {
         if (process.env.NODE_ENV === "development") {
-          console.log("Initializing railway data...");
-        }
-        await initializeStationsDatabase();
-        if (process.env.NODE_ENV === "development") {
-          console.log("Stations database initialized successfully.");
-        }
-        await initializeTrainsDatabase();
-        if (process.env.NODE_ENV === "development") {
-          console.log("Trains database initialized successfully.");
-          console.log("Railway data initialization complete.");
+          console.log("Starting background data load...");
         }
 
-        // Initialize local authentication service
-        if (process.env.NODE_ENV === "development") {
-          console.log("Initializing local authentication...");
-        }
-        initializeLocalAuth();
-        if (process.env.NODE_ENV === "development") {
-          console.log("Local authentication setup complete.");
-        }
-        // Artificial delay to ensure loader is visible - For production remove this
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        setIsInitializing(false);
-      } catch (error) {
-        console.error("Failed to initialize railway data:", error);
-        setInitializationError(
-          "Failed to initialize application data. Please try again later."
-        );
-        setIsInitializing(false);
-      }
+        initializeStationsDatabase().then(() => {
+          if (process.env.NODE_ENV === "development") console.log("Stations loaded");
+        });
+        initializeTrainsDatabase().then(() => {
+          if (process.env.NODE_ENV === "development") console.log("Trains loaded");
+        });
+      }, DELAY_MS);
+
+      return timer;
     };
+
+    // Initialize local authentication service immediately as it is lightweight
+    initializeLocalAuth();
+    setIsInitializing(false);
 
     if (process.env.NODE_ENV === "development") {
       console.log("App component mounted");
     }
-    initializeDatabases().catch((error) => {
-      console.error("Database initialization failed:", error);
-      setInitializationError("A critical error occurred during startup.");
-      setIsInitializing(false);
-    });
+
+    const timerId = initializeDatabases();
 
     // Event listeners for chat removed - moved to PublicLayout
   }, []);
@@ -199,119 +188,129 @@ const App: React.FC = () => {
     <>
       <PrototypeDisclaimerPopup />
       <ApiKeyPopup />
-      <Routes>
-        {/* Admin Routes - Full Screen, No Public Layout */}
-        <Route path="/admin-login" element={<AdminLoginPage />} />
-        <Route path="/admin-register" element={<AdminRegisterPage />} />
-        <Route
-          path="/dashboard"
-          element={
-            <ComplaintProvider>
-              <AdminRoute>
-                <AdminDashboardPage />
-              </AdminRoute>
-            </ComplaintProvider>
-          }
-        />
-        <Route
-          path="/dashboard/complaint/:id"
-          element={
-            <ComplaintProvider>
-              <AdminRoute>
-                <AdminComplaintDetailPage />
-              </AdminRoute>
-            </ComplaintProvider>
-          }
-        />
+      <React.Suspense
+        fallback={
+          <AppLoader
+            message="Loading resources..."
+            subMessage="Please wait while we optimize for your network."
+            showLogo={true}
+          />
+        }
+      >
+        <Routes>
+          {/* Admin Routes - Full Screen, No Public Layout */}
+          <Route path="/admin-login" element={<AdminLoginPage />} />
+          <Route path="/admin-register" element={<AdminRegisterPage />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ComplaintProvider>
+                <AdminRoute>
+                  <AdminDashboardPage />
+                </AdminRoute>
+              </ComplaintProvider>
+            }
+          />
+          <Route
+            path="/dashboard/complaint/:id"
+            element={
+              <ComplaintProvider>
+                <AdminRoute>
+                  <AdminComplaintDetailPage />
+                </AdminRoute>
+              </ComplaintProvider>
+            }
+          />
 
-        {/* Public Routes - Wrapped in PublicLayout */}
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/track-concern"
-            element={
-              <ComplaintProvider>
-                <TrackComplaintPage />
-              </ComplaintProvider>
-            }
-          />
-          <Route
-            path="/track-concern/result/:id"
-            element={
-              <ComplaintProvider>
-                <ComplaintDetailPage />
-              </ComplaintProvider>
-            }
-          />
-          <Route path="/passenger-login" element={<PassengerLoginPage />} />
-          <Route
-            path="/passenger-register"
-            element={<PassengerRegisterPage />}
-          />
-          <Route
-            path="/submit"
-            element={
-              <ComplaintProvider>
-                <PassengerRoute>
-                  <SubmitComplaintPage />
-                </PassengerRoute>
-              </ComplaintProvider>
-            }
-          />
-          <Route
-            path="/suggestions"
-            element={
-              <ComplaintProvider>
-                <PassengerRoute>
-                  <SuggestionsPage />
-                </PassengerRoute>
-              </ComplaintProvider>
-            }
-          />
-          <Route
-            path="/status"
-            element={
-              <ComplaintProvider>
-                <PassengerRoute>
-                  <ComplaintStatusPage />
-                </PassengerRoute>
-              </ComplaintProvider>
-            }
-          />
-          <Route
-            path="/status/:id"
-            element={
-              <ComplaintProvider>
-                <PassengerRoute>
+          {/* Public Routes - Wrapped in PublicLayout */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/track-concern"
+              element={
+                <ComplaintProvider>
+                  <TrackComplaintPage />
+                </ComplaintProvider>
+              }
+            />
+            <Route
+              path="/track-concern/result/:id"
+              element={
+                <ComplaintProvider>
                   <ComplaintDetailPage />
-                </PassengerRoute>
-              </ComplaintProvider>
-            }
-          />
-          <Route
-            path="/edit-complaint/:id"
-            element={
-              <ComplaintProvider>
-                <PassengerRoute>
-                  <EditComplaintPage />
-                </PassengerRoute>
-              </ComplaintProvider>
-            }
-          />
-          <Route
-            path="/rail-anubhav"
-            element={
-              <ComplaintProvider>
-                <RailAnubhavPage />
-              </ComplaintProvider>
-            }
-          />
-          <Route path="/faq" element={<FaqPage />} />
-        </Route>
+                </ComplaintProvider>
+              }
+            />
+            <Route path="/passenger-login" element={<PassengerLoginPage />} />
+            <Route
+              path="/passenger-register"
+              element={<PassengerRegisterPage />}
+            />
+            <Route
+              path="/submit"
+              element={
+                <ComplaintProvider>
+                  <PassengerRoute>
+                    <SubmitComplaintPage />
+                  </PassengerRoute>
+                </ComplaintProvider>
+              }
+            />
+            <Route
+              path="/suggestions"
+              element={
+                <ComplaintProvider>
+                  <PassengerRoute>
+                    <SuggestionsPage />
+                  </PassengerRoute>
+                </ComplaintProvider>
+              }
+            />
+            <Route
+              path="/status"
+              element={
+                <ComplaintProvider>
+                  <PassengerRoute>
+                    <ComplaintStatusPage />
+                  </PassengerRoute>
+                </ComplaintProvider>
+              }
+            />
+            <Route
+              path="/status/:id"
+              element={
+                <ComplaintProvider>
+                  <PassengerRoute>
+                    <ComplaintDetailPage />
+                  </PassengerRoute>
+                </ComplaintProvider>
+              }
+            />
+            <Route
+              path="/edit-complaint/:id"
+              element={
+                <ComplaintProvider>
+                  <PassengerRoute>
+                    <EditComplaintPage />
+                  </PassengerRoute>
+                </ComplaintProvider>
+              }
+            />
+            <Route
+              path="/rail-anubhav"
+              element={
+                <ComplaintProvider>
+                  <RailAnubhavPage />
+                </ComplaintProvider>
+              }
+            />
+            <Route path="/faq" element={<FaqPage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </React.Suspense>
 
       {/* Debug panel removed in demo to avoid covering UI */}
 
