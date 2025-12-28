@@ -324,7 +324,7 @@ export const ComplaintProvider: React.FC<{ children: React.ReactNode }> = ({
           createdAt: now,
           updatedAt: now,
           media,
-          userEmail: user.email, // Associate complaint with user for filtering
+          userEmail: user?.email || "anonymous", // Associate complaint with user for filtering
         };
 
         // Update state with new complaint

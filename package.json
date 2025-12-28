@@ -10,7 +10,7 @@
     "init-db": "tsx scripts/init-db.ts",
     "migrate-db": "tsx scripts/migrate-supabase-to-sqlite.ts",
     "setup-rag": "tsx scripts/setup-rag.ts",
-    "deploy": "npm run build && npx wrangler pages deploy dist"
+    "deploy": "npm run build && npx wrangler pages deploy dist --project-name railmadad"
   },
   "dependencies": {
     "@google/genai": "1.34.0",
