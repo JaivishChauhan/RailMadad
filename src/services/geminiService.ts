@@ -1889,9 +1889,13 @@ export const chatWithContext = async (
   systemPromptOverride?: string,
   multimodalParts?: Array<{ inlineData: { mimeType: string; data: string } }>
 ): Promise<string> => {
+  // Get available AI clients - don't throw yet, check if ANY provider is available
   const ai = getGeminiClient();
-  if (!ai) {
-    throw new Error("Gemini API key is not configured.");
+  const openRouterKey = getOpenRouterApiKey();
+
+  // Check if ANY AI provider is configured
+  if (!ai && !openRouterKey) {
+    throw new Error("No AI provider configured. Please set a Gemini or OpenRouter API key.");
   }
 
   // Check for emergency content first and handle it separately - Enhanced with fuzzy matching
@@ -2016,12 +2020,14 @@ export const chatWithContext = async (
     let result;
     let retryCount = 0;
     const maxRetries = 3;
-    let fallbackTier: FallbackTier = 0;
+    // Determine starting tier based on available providers
+    // If no Gemini key, start at tier 1 (OpenRouter primary) or tier 2 (OpenRouter free)
+    let fallbackTier: FallbackTier = ai ? 0 : 1;
 
     // Declare chat at a higher scope so it's accessible for function calls later
     let chat: any;
-    // Track current provider for proper chat handling
-    let currentProvider: "gemini" | "openrouter" = "gemini";
+    // Track current provider for proper chat handling - start based on available key
+    let currentProvider: "gemini" | "openrouter" = ai ? "gemini" : "openrouter";
 
     while (retryCount <= maxRetries) {
       try {
@@ -2029,7 +2035,7 @@ export const chatWithContext = async (
         const tierConfig = getTierConfig(fallbackTier);
         currentProvider = tierConfig.provider;
 
-        if (tierConfig.provider === "gemini") {
+        if (tierConfig.provider === "gemini" && ai) {
           // ========== GEMINI NATIVE SDK ==========
           const generativeModel = ai.getGenerativeModel({
             model: tierConfig.model,
@@ -2454,7 +2460,10 @@ export const handleEmergencyResponse = async (
   userContext?: any
 ): Promise<string> => {
   const ai = getGeminiClient();
-  if (!ai) {
+  const openRouterKey = getOpenRouterApiKey();
+
+  // Only fallback if NO AI provider is available at all
+  if (!ai && !openRouterKey) {
     return generateEmergencyFallbackResponse(userMessage);
   }
 
@@ -2523,7 +2532,8 @@ Provide a professional, concise emergency response. If details are missing, ask 
   }
 
   // Retry logic with tiered provider fallback on 429 errors
-  let fallbackTier: FallbackTier = 0;
+  // Start from tier 1 (OpenRouter) if no Gemini key is available
+  let fallbackTier: FallbackTier = ai ? 0 : 1;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -2531,7 +2541,7 @@ Provide a professional, concise emergency response. If details are missing, ask 
 
       let response: string;
 
-      if (tierConfig.provider === "gemini") {
+      if (tierConfig.provider === "gemini" && ai) {
         // Use Gemini native SDK
         const model = ai.getGenerativeModel({
           model: tierConfig.model,
