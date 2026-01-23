@@ -301,6 +301,96 @@ export const extractFromFiles = async (
   });
 };
 
+/**
+ * Extracts complaint details from a free-text complaint description.
+ * Routes to the active provider's implementation so forms and UI use the
+ * configured provider (OpenRouter or Gemini) according to app settings.
+ *
+ * @param {string} description - The user's complaint description.
+ * @returns {Promise<any>} Extracted complaint data.
+ */
+export const extractComplaintDetailsFromText = async (
+  description: string
+): Promise<any> => {
+  if (!description || description.trim().length < 5) return {};
+
+  return executeWithFallback(async (provider) => {
+    if (provider === "openrouter") {
+      const { openRouterChatJSON } = await import("./openRouterService");
+      const { complaintData } = await import("../data/complaintData");
+      const { RAILWAY_CONTEXT_PROMPT } = await import("./geminiService");
+
+      const complaintDataString = JSON.stringify(complaintData, null, 2);
+      const today = new Date();
+      const currentDate = today.toISOString().split("T")[0];
+      const currentTime = today.toTimeString().split(" ")[0].substring(0, 5);
+
+      const prompt = `
+        You are an AI assistant for a railway complaint system. Your task is to analyze the user's complaint description and extract information to pre-fill a complaint form.
+
+        User's Description:
+        """
+        ${description}
+        """
+
+        Current Date: ${currentDate}
+        Current Time: ${currentTime}
+
+        ${RAILWAY_CONTEXT_PROMPT}
+
+        Provide a structured JSON response matching this specific schema:
+        {
+          "pnr": "10-digit number or null",
+          "utsNumber": "UTS number or null",
+          "trainNumber": "Train number or null",
+          "coachNumber": "Coach identifier (e.g., S5, B1) or null",
+          "seatNumber": "Seat/Berth number (e.g., 42, UB, Lower) or null",
+          "journeyDate": "YYYY-MM-DD or null",
+          "incidentDate": "YYYY-MM-DD or null",
+          "incidentTime": "HH:mm or null",
+          "complaintArea": "TRAIN or STATION",
+          "complaintType": "String from list below",
+          "complaintSubType": "String from list below",
+          "description": "Enhanced description string",
+          "nearestStation": "Station code/name or null",
+          "mobileNumber": "10-digit number or null",
+          "unauthorizedPeopleCount": "Number or null",
+          "platformNumber": "Platform number or null"
+        }
+
+        If a piece of information is not explicitly mentioned or clearly inferred, do not include its key in the JSON response.
+
+        **CRITICAL INSTRUCTIONS:**
+        1.  **Extract Details:** Look for PNR (10 digits), UTS Number (alphanumeric), Train Number, Coach, Seat/Berth, Station names, Dates, Times, and Mobile Numbers.
+        2.  **Categorization:** Determine the 'complaintArea' ('TRAIN' or 'STATION'), 'complaintType', and 'complaintSubType' based on the description. Use the provided JSON structure for valid values.
+            \`\`\`json
+            ${complaintDataString}
+            \`\`\`
+        3.  **Inference:**
+            - If "today" or "now" is mentioned, use the provided Current Date/Time.
+            - If a PNR or UTS number is provided, it is for a TRAIN complaint.
+        4.  **Enhance Description:**
+            - If the user's description is brief or unstructured, provide an enhanced version in the 'description' field.
+            - Format it clearly, correcting any typos and organizing the details.
+            - Do NOT invent new facts, but you can infer context (e.g., "S5" implies "Coach S5").
+        5.  **Output:** Return ONLY the JSON object.
+
+        Analyze the text and extract the data.
+    `;
+
+      const result = await openRouterChatJSON([
+        { role: "user", content: prompt },
+      ]);
+      return result;
+    } else {
+      const { extractComplaintDetailsFromText } = await import(
+        "./geminiService"
+      );
+      return extractComplaintDetailsFromText(description);
+    }
+  });
+};
+
 // ============================================================================
 // Validation Functions (Always use local data, AI-enhanced)
 // ============================================================================
@@ -404,4 +494,4 @@ export const getActiveModelId = (): string => {
 // that imports directly from geminiService
 export { chatWithContext } from "./geminiService";
 export { analyzeComplaintWithAI } from "./geminiService";
-export { extractComplaintDetailsFromFile } from "./geminiService";
+export { extractFromFiles as extractComplaintDetailsFromFile };

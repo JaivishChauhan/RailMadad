@@ -17,9 +17,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { LoadingScreen } from "../../components/ui/LoadingScreen";
 import { complaintData } from "../../data/complaintData";
 import {
-  extractComplaintDetailsFromFile,
+  extractFromFiles as extractComplaintDetailsFromFile,
   extractComplaintDetailsFromText,
-} from "../../services/geminiService";
+} from "../../services/unifiedAIService";
 import { Priority } from "../../types";
 import type { ComplaintArea } from "../../types";
 
@@ -32,6 +32,13 @@ const getTodayDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+/**
+ * SubmitComplaintPage
+ *
+ * Intent: Presents the traditional complaint submission form. Supports AI-assisted
+ * auto-fill via the unified AI service (Gemini or OpenRouter depending on config).
+ * Edge cases: gracefully handles missing API configuration by allowing manual input.
+ */
 const SubmitComplaintPage: React.FC = () => {
   const [complaintArea, setComplaintArea] = useState<ComplaintArea>("TRAIN");
   const [complaintType, setComplaintType] = useState("");
@@ -696,8 +703,8 @@ const SubmitComplaintPage: React.FC = () => {
                       {isVerifyingPnr
                         ? "Verifying..."
                         : pnrVerified
-                          ? "Verified"
-                          : "Verify"}
+                        ? "Verified"
+                        : "Verify"}
                     </Button>
                   </div>
                 </div>
@@ -917,8 +924,8 @@ const SubmitComplaintPage: React.FC = () => {
               {loading
                 ? "Submitting..."
                 : isExtracting
-                  ? "Analyzing files..."
-                  : "Submit Complaint"}
+                ? "Analyzing files..."
+                : "Submit Complaint"}
             </Button>
           </div>
         </form>

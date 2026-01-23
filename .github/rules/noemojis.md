@@ -1,0 +1,5 @@
+---
+trigger: always_on
+---
+
+NEVER USE EMOJI ALWAYS USE AVAILABLE ICON LIBRARY

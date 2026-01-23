@@ -39,6 +39,19 @@ export interface OpenRouterContentPart {
   };
 }
 
+export interface OpenRouterTool {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: "object";
+      properties: Record<string, any>;
+      required?: string[];
+    };
+  };
+}
+
 /**
  * OpenRouter API request body.
  */
@@ -51,6 +64,11 @@ export interface OpenRouterRequest {
   stream?: boolean;
   response_format?: { type: "json_object" };
   stop?: string | string[];
+  tools?: OpenRouterTool[];
+  tool_choice?:
+    | "auto"
+    | "none"
+    | { type: "function"; function: { name: string } };
 }
 
 /**
@@ -63,7 +81,15 @@ export interface OpenRouterResponse {
     index: number;
     message: {
       role: "assistant";
-      content: string;
+      content: string | null;
+      tool_calls?: Array<{
+        id: string;
+        type: "function";
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }>;
     };
     finish_reason: string;
   }>;
@@ -174,6 +200,7 @@ export const openRouterChat = async (
     temperature?: number;
     topP?: number;
     jsonMode?: boolean;
+    tools?: OpenRouterTool[];
   } = {}
 ): Promise<string> => {
   const apiKey = getOpenRouterApiKey();
@@ -190,13 +217,18 @@ export const openRouterChat = async (
   const requestBody: OpenRouterRequest = {
     model: modelId,
     messages,
-    max_tokens: options.maxTokens ?? 65536,
+    max_tokens: options.maxTokens ?? 8192,
     temperature: options.temperature ?? 1,
     top_p: options.topP ?? 0.95,
   };
 
   if (options.jsonMode) {
     requestBody.response_format = { type: "json_object" };
+  }
+
+  if (options.tools && options.tools.length > 0) {
+    requestBody.tools = options.tools;
+    requestBody.tool_choice = "auto";
   }
 
   const response = await fetch(OPENROUTER_API_URL, {
@@ -210,7 +242,17 @@ export const openRouterChat = async (
   }
 
   const data = (await response.json()) as OpenRouterResponse;
-  return data.choices[0]?.message?.content || "";
+
+  // Handle tool calls if present (convert to FUNCTION_CALL format for compatibility)
+  const message = data.choices[0]?.message;
+  if (message?.tool_calls && message.tool_calls.length > 0) {
+    const toolCall = message.tool_calls[0];
+    // Format: FUNCTION_CALL: functionName({ "arg": "value" })
+    // The arguments are already a JSON string
+    return `FUNCTION_CALL: ${toolCall.function.name}(${toolCall.function.arguments})`;
+  }
+
+  return message?.content || "";
 };
 
 /**
@@ -229,6 +271,7 @@ export const openRouterChatWithRetry = async (
     topP?: number;
     jsonMode?: boolean;
     maxRetries?: number;
+    tools?: OpenRouterTool[];
   } = {}
 ): Promise<string> => {
   const maxRetries = options.maxRetries ?? 2;
@@ -378,8 +421,12 @@ export const openRouterChatWithContext = async (
   multimodalParts?: Array<{ inlineData: { mimeType: string; data: string } }>
 ): Promise<string> => {
   // Import the system prompt from geminiService to maintain consistency
-  const { RAILMADAD_CHAT_SYSTEM_PROMPT, generateUserAwareSystemPrompt } =
-    await import("./geminiService");
+  const {
+    RAILMADAD_CHAT_SYSTEM_PROMPT,
+    generateUserAwareSystemPrompt,
+    railwayValidationTools,
+    convertToolsToOpenRouter,
+  } = await import("./geminiService");
   const { createContextAwarePrompt, extractContextFromMessage } = await import(
     "./contextEnhancer"
   );
@@ -409,6 +456,11 @@ export const openRouterChatWithContext = async (
     systemPrompt
   );
 
+  // Convert tools to OpenRouter format
+  const openRouterTools = convertToolsToOpenRouter(
+    railwayValidationTools
+  ) as OpenRouterTool[];
+
   // Add current user message with potential multimodal content
   if (multimodalParts && multimodalParts.length > 0) {
     messages.push({
@@ -423,7 +475,9 @@ export const openRouterChatWithContext = async (
   }
 
   // Send request with retry logic
-  const response = await openRouterChatWithRetry(messages);
+  const response = await openRouterChatWithRetry(messages, {
+    tools: openRouterTools,
+  });
 
   // Filter response based on user context if needed
   if (userContext) {

@@ -307,7 +307,8 @@ const getTierConfig = (
   const config = getFallbackTierConfig(tier as 0 | 1 | 2);
   if (tier > 0) {
     console.log(
-      `${tier === 1 ? "⚠️" : "🆘"} Fallback triggered - switching to ${config.provider
+      `${tier === 1 ? "⚠️" : "🆘"} Fallback triggered - switching to ${
+        config.provider
       } (${config.model})`
     );
   }
@@ -324,9 +325,9 @@ const getTierConfig = (
 type OpenRouterContentPart =
   | { type: "text"; text: string }
   | {
-    type: "image_url";
-    image_url: { url: string; detail?: "auto" | "low" | "high" };
-  };
+      type: "image_url";
+      image_url: { url: string; detail?: "auto" | "low" | "high" };
+    };
 
 /**
  * OpenRouter message format supporting both simple and multimodal content.
@@ -412,7 +413,9 @@ interface OpenRouterOptions {
  * @param {any[]} geminiTools - Gemini function declarations
  * @returns {OpenRouterTool[]} OpenRouter-compatible tools
  */
-const convertToolsToOpenRouter = (geminiTools: any[]): OpenRouterTool[] => {
+export const convertToolsToOpenRouter = (
+  geminiTools: any[]
+): OpenRouterTool[] => {
   const tools: OpenRouterTool[] = [];
 
   for (const toolGroup of geminiTools) {
@@ -1307,7 +1310,8 @@ export const analyzeComplaintWithAI = async (
       lastError = error;
       if (shouldFallback(error) && fallbackTier < 2) {
         console.log(
-          `🔄 Error on analyzeComplaintWithAI - escalating to tier ${fallbackTier + 1
+          `🔄 Error on analyzeComplaintWithAI - escalating to tier ${
+            fallbackTier + 1
           }`
         );
         fallbackTier = (fallbackTier + 1) as FallbackTier;
@@ -1402,7 +1406,7 @@ const extractionSchema = {
 };
 
 // Shared Railway Context for AI Prompts
-const RAILWAY_CONTEXT_PROMPT = `
+export const RAILWAY_CONTEXT_PROMPT = `
 **Indian Railway System Context - Use this information for your analysis:**
 - **Coach Types:** Sleeper (SL), AC 3 Tier (3A), AC 2 Tier (2A), First Class AC (1A), Chair Car (CC), General (GEN). Coaches are often labeled with codes like S1, S2, B1, B2, A1, etc.
 - **Berth/Seat Identification (VERY IMPORTANT):**
@@ -1684,7 +1688,8 @@ export const extractComplaintDetailsFromText = async (
     } catch (error: any) {
       if (shouldFallback(error) && fallbackTier < 2) {
         console.log(
-          `🔄 Error on extractComplaintDetailsFromText - escalating to tier ${fallbackTier + 1
+          `🔄 Error on extractComplaintDetailsFromText - escalating to tier ${
+            fallbackTier + 1
           }`
         );
         fallbackTier = (fallbackTier + 1) as FallbackTier;
@@ -1787,7 +1792,8 @@ export const extractComplaintFromChatbotMessage = async (
     } catch (error: any) {
       if (shouldFallback(error) && fallbackTier < 2) {
         console.log(
-          `🔄 Error on extractComplaintFromChatbotMessage - escalating to tier ${fallbackTier + 1
+          `🔄 Error on extractComplaintFromChatbotMessage - escalating to tier ${
+            fallbackTier + 1
           }`
         );
         fallbackTier = (fallbackTier + 1) as FallbackTier;
@@ -1895,7 +1901,9 @@ export const chatWithContext = async (
 
   // Check if ANY AI provider is configured
   if (!ai && !openRouterKey) {
-    throw new Error("No AI provider configured. Please set a Gemini or OpenRouter API key.");
+    throw new Error(
+      "No AI provider configured. Please set a Gemini or OpenRouter API key."
+    );
   }
 
   // Check for emergency content first and handle it separately - Enhanced with fuzzy matching
@@ -2587,7 +2595,8 @@ Please reply 'CONFIRM' to submit this report to the Railway Protection Force (RP
     } catch (error: any) {
       if (shouldFallback(error) && fallbackTier < 2) {
         console.log(
-          `🔄 Error on handleEmergencyResponse - escalating to tier ${fallbackTier + 1
+          `🔄 Error on handleEmergencyResponse - escalating to tier ${
+            fallbackTier + 1
           }`
         );
         fallbackTier = (fallbackTier + 1) as FallbackTier;
@@ -2674,8 +2683,8 @@ const handleFunctionCalls = async (
             functionResult == null
               ? {}
               : typeof functionResult === "string"
-                ? { text: functionResult }
-                : functionResult;
+              ? { text: functionResult }
+              : functionResult;
 
           functionResults.push({
             ...normalizedResult,

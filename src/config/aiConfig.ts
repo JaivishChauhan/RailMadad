@@ -207,7 +207,7 @@ export const OPENROUTER_MODEL_OPTIONS = [
  */
 export const MAX_TOKENS = {
   gemini: 65536,
-  openrouter: 8192, // Conservative limit for OpenRouter to avoid credit issues
+  openrouter: 8192, // Increased limit for OpenRouter to support image analysis
 } as const;
 
 /** LocalStorage keys for max tokens configuration */
@@ -679,11 +679,13 @@ export const logAIConfigStatus = (): void => {
   const status = getProvidersStatus();
   console.log("🤖 AI Configuration Status:");
   console.log(
-    `   Gemini: ${status.gemini.available ? "✅ Available" : "❌ Not configured"
+    `   Gemini: ${
+      status.gemini.available ? "✅ Available" : "❌ Not configured"
     }${status.gemini.isActive ? " (Active)" : ""}`
   );
   console.log(
-    `   OpenRouter: ${status.openrouter.available ? "✅ Available" : "❌ Not configured"
+    `   OpenRouter: ${
+      status.openrouter.available ? "✅ Available" : "❌ Not configured"
     }${status.openrouter.isActive ? " (Active)" : ""}`
   );
   console.log(`   Active Provider: ${status.activeProvider || "None"}`);
